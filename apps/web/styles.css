@@ -66,9 +66,10 @@ input:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
 .count { color: var(--muted); font-size: .62em; font-weight: 600; letter-spacing: 0; white-space: nowrap; }
 .people { list-style: none; margin: 28px 0 0; padding: 0; display: grid; gap: 18px; }
 .people li { padding: 0; display: flex; align-items: center; gap: 12px; }
+.people li.has-imported-prompts { padding: 12px 14px; background: #0d1129; }
 .people li::before { content: attr(data-initial); width: 30px; height: 30px; display: grid; place-items: center; background: var(--primary); color: var(--ink); font-weight: 900; font-size: 12px; }
 .people small.you-label { color: var(--ink); margin-left: -7px; }
-.people small.prompt-imported { color: var(--primary); margin-left: auto; }
+.people small.prompt-imported { color: var(--primary); margin-left: auto; font-size: 15px; font-weight: 800; white-space: nowrap; }
 .cli-panel code { display: block; overflow-x: auto; margin-top: 22px; padding: 15px; background: #0d1129; border: 1px solid var(--line); color: var(--highlight); }
 .start-panel { display: flex; flex-direction: column; justify-content: center; }
 .start-panel .button { margin-top: auto; }

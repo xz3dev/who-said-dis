@@ -204,6 +204,7 @@ function renderPeople(room) {
       item.append(you);
     }
     if (person.promptCount > 0) {
+      item.classList.add("has-imported-prompts");
       const imported = document.createElement("small");
       imported.className = "prompt-imported";
       imported.textContent = "✓ Prompts imported";
