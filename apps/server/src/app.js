@@ -26,7 +26,14 @@ const webRoot = fileURLToPath(new URL("../../web/", import.meta.url));
 const reconnectingWebSocketPath = fileURLToPath(
   new URL("../../../node_modules/reconnecting-websocket/dist/reconnecting-websocket-mjs.js", import.meta.url)
 );
-const mimeTypes = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".png": "image/png", ".ico": "image/x-icon" };
+const mimeTypes = {
+  ".html": "text/html; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".png": "image/png",
+  ".ico": "image/x-icon",
+  ".webmanifest": "application/manifest+json"
+};
 
 export function createApp({ database, config, fetchImpl = fetch, eventHub = new RoomEventHub() }) {
   const allow = createRateLimiter({ maxKeys: 10_000 });
