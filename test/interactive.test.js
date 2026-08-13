@@ -5,7 +5,7 @@ import {
   readAllPrompts,
   runInteractiveCli,
   selectAnalyzer
-} from "../src/interactive.js";
+} from "../apps/cli/src/interactive.js";
 
 function prompt(text) {
   return { text, citation: "codex://test" };

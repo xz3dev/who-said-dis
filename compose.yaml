@@ -1,0 +1,18 @@
+services:
+  who-said-dis:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PUBLIC_URL: ${PUBLIC_URL:-https://who-said-dis.com}
+      DATABASE_PATH: /data/who-said-dis.sqlite
+      PORT: 3000
+      SECURE_COOKIES: "1"
+      TRUST_PROXY: "1"
+    ports:
+      - "3000:3000"
+    volumes:
+      - who-said-dis-data:/data
+
+volumes:
+  who-said-dis-data:

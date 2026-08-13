@@ -3,8 +3,8 @@ import { chmod, mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import test from "node:test";
-import { scanCodexInstallations } from "../src/providers/codex.js";
-import { providers } from "../src/providers/index.js";
+import { scanCodexInstallations } from "../apps/cli/src/providers/codex.js";
+import { providers } from "../apps/cli/src/providers/index.js";
 
 test("Codex scanner finds executable installations on PATH", async () => {
   const root = await mkdtemp(join(tmpdir(), "who-said-dis-provider-"));

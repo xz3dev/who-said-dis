@@ -6,7 +6,7 @@ import {
   isEligiblePrompt,
   scoreHumorSignals,
   selectHumorCandidates
-} from "../src/funny.js";
+} from "../apps/cli/src/funny.js";
 
 function prompt(text, index) {
   return {

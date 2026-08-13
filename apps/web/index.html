@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Find out who said what to an AI." />
+    <title>who said dis?</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" defer></script>
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="brand" aria-label="who said dis home">
+        <a href="/">who said dis<span>?</span></a>
+      </header>
+
+      <section id="landing" class="view hero" hidden>
+        <div class="eyebrow">A party game made from your AI history</div>
+        <h1>Your prompts.<br /><em>Out of context.</em></h1>
+        <p class="lede">Create a private room, invite your friends, and discover who really typed that into an AI.</p>
+        <form id="create-form" class="action-card">
+          <div>
+            <strong>Start a new room</strong>
+            <span>No account. Rooms disappear after 24 hours.</span>
+          </div>
+          <div id="create-turnstile" class="turnstile"></div>
+          <button id="create-button" class="button primary" type="submit" disabled>Create room <span>→</span></button>
+          <p id="create-error" class="error" role="alert"></p>
+        </form>
+      </section>
+
+      <section id="join" class="view centered" hidden>
+        <div class="eyebrow">You’ve been invited</div>
+        <h1>Who are you?</h1>
+        <p class="lede compact">Choose the name your friends will recognize.</p>
+        <form id="join-form" class="join-card">
+          <label for="name">Your name</label>
+          <input id="name" name="name" maxlength="32" autocomplete="nickname" placeholder="Ada" required autofocus />
+          <div id="join-turnstile" class="turnstile"></div>
+          <button id="join-button" class="button primary wide" type="submit" disabled>Join room <span>→</span></button>
+          <p id="join-error" class="error" role="alert"></p>
+        </form>
+      </section>
+
+      <section id="room" class="view room" hidden>
+        <div class="room-heading">
+          <div>
+            <h1 id="room-title">Get everyone ready.</h1>
+            <p id="room-subtitle" class="lede compact">Share the invite, then bring your funniest prompts from the CLI.</p>
+          </div>
+        </div>
+
+        <div id="lobby" class="room-grid">
+            <section class="panel invite-people-panel">
+              <span class="panel-number">01</span>
+              <h2>Invite your friends</h2>
+              <p>Anyone with this private link can join.</p>
+              <div class="copy-row">
+                <input id="invite-url" readonly aria-label="Private room invitation URL" />
+                <button id="copy-invite" class="button secondary" type="button">Copy link</button>
+              </div>
+              <p id="copy-status" class="muted" aria-live="polite"></p>
+              <div class="people-section">
+                <div class="panel-title-row">
+                  <h2>In the room <span id="people-count" class="count">(0 participants)</span></h2>
+                </div>
+                <ul id="people" class="people"></ul>
+              </div>
+            </section>
+
+            <section class="panel cli-panel">
+              <span class="panel-number">02</span>
+              <h2>Add your prompts</h2>
+              <p>This command imports your selected prompts as your current room name.</p>
+              <code id="cli-command">Preparing your private command…</code>
+              <button id="copy-cli" class="button secondary wide" type="button" disabled>Copy command</button>
+              <p id="cli-status" class="muted" aria-live="polite"></p>
+            </section>
+
+            <section class="panel start-panel">
+              <span class="panel-number">03</span>
+              <h2>Ready to play?</h2>
+              <p id="prompt-total">Waiting for the first prompts.</p>
+              <button id="start-game" class="button primary wide" type="button" disabled>Start game <span>→</span></button>
+              <p id="start-error" class="error" role="alert"></p>
+            </section>
+        </div>
+
+        <div id="game" class="game" hidden>
+          <div class="round-top">
+            <section id="prompt-card" class="prompt-card">
+              <div class="game-meta">
+                <span id="round-label" class="eyebrow">Round 1</span>
+                <span id="timer" class="timer"></span>
+              </div>
+              <blockquote id="prompt-text"></blockquote>
+            </section>
+            <button id="next-prompt" class="button primary next-action" type="button" hidden>Next prompt <span>→</span></button>
+          </div>
+          <section class="answers-panel">
+            <div class="panel-title-row">
+              <h2 id="answer-title">Who said dis?</h2>
+              <span id="vote-progress" class="vote-progress"></span>
+            </div>
+            <div id="answer-options" class="answer-options"></div>
+            <p id="vote-status" class="muted" aria-live="polite"></p>
+            <div id="reveal-summary" class="reveal-summary" hidden></div>
+            <div id="score-podium" class="score-podium" aria-label="Top scores" hidden></div>
+            <ul id="round-results" class="round-results" hidden></ul>
+          </section>
+          <section id="final-recap" class="final-recap" hidden>
+            <div class="recap-heading">
+              <span class="eyebrow">All prompts</span>
+              <h2>Prompt recap</h2>
+            </div>
+            <div id="recap-grid" class="recap-grid"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="missing" class="view centered" hidden>
+        <div class="eyebrow">Invite required</div>
+        <h1>This link is incomplete.</h1>
+        <p class="lede compact">Ask the room creator for the full private invite URL.</p>
+        <a class="button primary" href="/">Create a room</a>
+      </section>
+    </main>
+    <footer>Private by default · No accounts · Built for delightfully questionable prompts</footer>
+  </body>
+</html>

@@ -1,5 +1,63 @@
 # who-said-dis
 
+This repository contains three parts:
+
+- `apps/web`: the no-login room creation, joining, and lobby frontend.
+- `apps/server`: the HTTP API, Turnstile verification, and SQLite room storage.
+- `apps/cli`: the local prompt-scanning CLI published as `@xz3dev/who-said-dis`.
+
+## Web app
+
+Creating a room requires Cloudflare Turnstile but does not ask for a name or create a participant.
+The backend returns a private invite URL and the browser redirects to it. The creator then joins in
+exactly the same way as every invitee: enter a name, pass a fresh Turnstile check, and submit the
+private join token.
+
+Private join tokens live in the URL fragment so they are not sent with the initial page request.
+The backend stores only token hashes. Rooms expire after 24 hours and are limited to 20 people.
+
+Copy `.env.example` to `.env` and configure at least:
+
+```dotenv
+TURNSTILE_SITE_KEY=your-public-site-key
+TURNSTILE_SECRET=your-private-secret
+```
+
+For production, configure the Turnstile widget for `who-said-dis.com`, then run:
+
+```sh
+docker compose up --build -d
+```
+
+The service listens on port 3000 and persists its SQLite database in the
+`who-said-dis-data` Docker volume. Put an HTTPS reverse proxy or Cloudflare Tunnel in front of it.
+Room presence uses an authenticated WebSocket at `/api/rooms/*/socket`. Only participants with a
+live socket are shown in the room. The server sends a WebSocket ping every 20 seconds and drops a
+connection that misses the next pong; the browser reconnects automatically with exponential
+backoff. Configure your reverse proxy to pass WebSocket upgrades and use an idle timeout above 20
+seconds.
+
+For local UI development with Turnstile deliberately bypassed:
+
+```sh
+TURNSTILE_BYPASS=1 npm run dev
+```
+
+Never enable `TURNSTILE_BYPASS` in production.
+The lobby uses `npm run cli --` during local development and
+`npx @xz3dev/who-said-dis` when `NODE_ENV=production` to build its private import command.
+Set `CLI_COMMAND` to override the command prefix for another deployment environment.
+Set `VOTE_TIMEOUT_SECONDS` to control the voting window (45 seconds by default).
+
+After joining, each participant receives a private CLI command tied to their room name. The CLI
+scans and analyzes local history, lets them select prompts, and imports only those selected prompt
+texts and citations. A round shows one prompt with up to four possible authors. It reveals when
+every participant has voted or the voting window expires, then any participant can continue.
+Correct answers earn 100–200 points: the base 100 points are multiplied by a speed factor from
+1× at the deadline to 2× at the start of the voting window. Wrong or missing answers earn 0.
+
+## Client CLI
+
 An interactive CLI that discovers locally installed Codex and Claude Code clients and helps you select memorable prompts from their local history.
 
 History is read locally and without modification. Only user prompt text is considered—attachments, model output, tool output, and system context are ignored.
@@ -23,7 +81,7 @@ The wizard will:
 During local development:
 
 ```sh
-npm start
+npm run cli
 ```
 
 The non-interactive inspection commands remain available for development:
@@ -85,13 +143,13 @@ const { prompts: claudePrompts } = await readClaudePrompts({ limit: 100 });
 
 ## Adding another provider
 
-Providers live in `src/providers/` and implement three operations:
+Providers live in `apps/cli/src/providers/` and implement three operations:
 
 - `scanInstallations()` returns executable and local-data locations.
 - `readPrompts(installation, options)` returns normalized prompt records.
 - `analyze(installation, prompts, options)` invokes that provider's configured analyzer.
 
-Register the adapter in `src/providers/index.js`; the interactive flow does not need provider-specific changes.
+Register the adapter in `apps/cli/src/providers/index.js`; the interactive flow does not need provider-specific changes.
 
 ## Limitations
 

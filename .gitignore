@@ -1,4 +1,7 @@
 node_modules/
 *.tgz
 coverage/
+.tmp/
 .idea/
+.env
+data/

@@ -4,20 +4,22 @@
   "description": "Interactively discover local LLM clients and analyze their prompt history.",
   "type": "module",
   "bin": {
-    "who-said-dis": "./bin/who-said-dis.js"
+    "who-said-dis": "./apps/cli/bin/who-said-dis.js"
   },
   "exports": {
-    ".": "./src/index.js"
+    ".": "./apps/cli/src/index.js"
   },
   "files": [
-    "bin",
-    "src",
+    "apps/cli",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
     "test": "node --test",
-    "start": "node ./bin/who-said-dis.js",
+    "cli": "node ./apps/cli/bin/who-said-dis.js",
+    "server": "node --env-file-if-exists=.env ./apps/server/src/index.js",
+    "dev": "node --env-file-if-exists=.env --watch ./apps/server/src/index.js",
+    "scenario:visual": "node ./apps/server/src/visual-scenario.js",
     "prepublishOnly": "npm test"
   },
   "keywords": [
@@ -37,6 +39,8 @@
     "access": "public"
   },
   "dependencies": {
-    "@inquirer/prompts": "^7.10.1"
+    "@inquirer/prompts": "^7.10.1",
+    "reconnecting-websocket": "^4.4.0",
+    "ws": "^8.21.3"
   }
 }

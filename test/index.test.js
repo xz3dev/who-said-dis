@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { readCodexPrompts, resolveCodexHome } from "../src/index.js";
+import { readCodexPrompts, resolveCodexHome } from "../apps/cli/src/index.js";
 
 async function fixture(lines) {
   const directory = await mkdtemp(join(tmpdir(), "who-said-dis-"));

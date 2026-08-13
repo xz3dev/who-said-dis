@@ -3,11 +3,11 @@ import { chmod, mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import test from "node:test";
-import { readClaudePrompts, resolveClaudeHome } from "../src/claude.js";
+import { readClaudePrompts, resolveClaudeHome } from "../apps/cli/src/claude.js";
 import {
   buildClaudeJudgeArgs,
   scanClaudeInstallations
-} from "../src/providers/claude.js";
+} from "../apps/cli/src/providers/claude.js";
 
 test("reads recent Claude prompts and excludes pasted attachments", async () => {
   const claudeHome = await mkdtemp(join(tmpdir(), "who-said-dis-claude-history-"));

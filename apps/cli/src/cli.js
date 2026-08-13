@@ -13,7 +13,7 @@ import {
 } from "./index.js";
 import { runInteractiveCli } from "./interactive.js";
 
-const packagePath = join(dirname(fileURLToPath(import.meta.url)), "..", "package.json");
+const packagePath = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "package.json");
 
 export async function runCli(args, io = console, dependencies = {}) {
   if (args.length === 0) {
@@ -31,6 +31,17 @@ export async function runCli(args, io = console, dependencies = {}) {
   if (options.version) {
     const packageJson = JSON.parse(await readFile(packagePath, "utf8"));
     io.log(packageJson.version);
+    return;
+  }
+
+  if (options.command === "import") {
+    const result = await runInteractiveCli({ io, ...dependencies });
+    if (result.status !== "complete" || result.selections.length === 0) {
+      io.log("No prompts imported.");
+      return;
+    }
+    const imported = await uploadPrompts(options.room, options.token, result.selections, dependencies.fetchImpl || fetch);
+    io.log(`\nImported ${imported.imported} prompt${imported.imported === 1 ? "" : "s"} for ${imported.name}.`);
     return;
   }
 
@@ -64,7 +75,10 @@ export async function runCli(args, io = console, dependencies = {}) {
 
 function parseArgs(args) {
   const funny = args[0] === "funny";
-  const options = funny
+  const importing = args[0] === "import";
+  const options = importing
+    ? { command: "import" }
+    : funny
     ? {
         command: "funny",
         scan: DEFAULT_FUNNY_SCAN,
@@ -75,7 +89,7 @@ function parseArgs(args) {
       }
     : { command: "list", limit: DEFAULT_LIMIT };
 
-  for (let index = funny ? 1 : 0; index < args.length; index += 1) {
+  for (let index = funny || importing ? 1 : 0; index < args.length; index += 1) {
     const argument = args[index];
     switch (argument) {
       case "-n":
@@ -87,6 +101,14 @@ function parseArgs(args) {
         break;
       case "--history":
         options.historyPath = requiredValue(args, ++index, argument);
+        break;
+      case "--room":
+        if (!importing) throw new Error("--room is only available with the import command");
+        options.room = requiredValue(args, ++index, argument);
+        break;
+      case "--token":
+        if (!importing) throw new Error("--token is only available with the import command");
+        options.token = requiredValue(args, ++index, argument);
         break;
       case "--scan":
         requireFunny(funny, argument);
@@ -120,6 +142,11 @@ function parseArgs(args) {
     }
   }
 
+  if (importing && !options.help && !options.version) {
+    if (!options.room) throw new Error("import requires --room");
+    if (!options.token) throw new Error("import requires --token");
+  }
+
   return options;
 }
 
@@ -146,6 +173,7 @@ function helpText() {
 
 Usage:
   who-said-dis                 Start the interactive wizard
+  who-said-dis import --room <url> --token <token>
   who-said-dis [list options]  Inspect normalized prompt records
   who-said-dis funny [options]
 
@@ -165,6 +193,32 @@ Funny options:
 
 Reading and pre-ranking are local and read-only. The funny command sends shortlisted
 prompt text through your authenticated Codex CLI connection for model inference.`;
+}
+
+export async function uploadPrompts(roomUrl, token, prompts, fetchImpl = fetch) {
+  let url;
+  try {
+    url = new URL(roomUrl);
+  } catch {
+    throw new Error("--room must be a valid room URL");
+  }
+  const match = url.pathname.match(/^\/room\/([A-Za-z0-9_-]+)\/?$/);
+  if (!match || !/^https?:$/.test(url.protocol)) throw new Error("--room must be a valid room URL");
+  if (typeof token !== "string" || !/^[A-Za-z0-9_-]{20,100}$/.test(token)) throw new Error("--token is invalid");
+
+  const response = await fetchImpl(`${url.origin}/api/rooms/${match[1]}/prompts`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      prompts: prompts.map((prompt) => ({ text: prompt.text, citation: prompt.citation }))
+    })
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.error || `Import failed (${response.status})`);
+  return body;
 }
 
 async function runFunnyCommand(options, io) {
