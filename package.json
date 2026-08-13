@@ -1,0 +1,42 @@
+{
+  "name": "@xz3dev/who-said-dis",
+  "version": "0.4.0",
+  "description": "Interactively discover local LLM clients and analyze their prompt history.",
+  "type": "module",
+  "bin": {
+    "who-said-dis": "./bin/who-said-dis.js"
+  },
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "start": "node ./bin/who-said-dis.js",
+    "prepublishOnly": "npm test"
+  },
+  "keywords": [
+    "codex",
+    "claude",
+    "llm",
+    "prompts",
+    "history",
+    "cli"
+  ],
+  "author": "xz3dev",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^7.10.1"
+  }
+}
