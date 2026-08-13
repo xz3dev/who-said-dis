@@ -11,13 +11,14 @@ The client finds memorable prompts in your local Codex and Claude Code history, 
 3. Paste the command into a terminal. It will look similar to:
 
    ```sh
-   npx --yes @xz3dev/who-said-dis@0.4.1 import --room https://who-said-dis.com/room/... --token ...
+   npx --yes @xz3dev/who-said-dis@0.4.2 import --room https://who-said-dis.com/room/... --token ...
    ```
 
 4. Choose the prompts you want to add with Space, then press Enter.
 5. Return to the browser and wait for everyone else to finish. The game will ask the room to guess who wrote each prompt.
 
-The token embedded in the command is personal, expires after 30 minutes, and works once. Refresh
+The token embedded in the command is personal, expires after 30 minutes, and works once. The client
+verifies that it is active before reading prompt history; this check does not consume it. Refresh
 the room page to replace an expired token. Do not share the command with other players, and remove
 it from your shell history if you share that account. The client refuses plaintext HTTP uploads
 except to localhost.

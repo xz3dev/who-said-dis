@@ -65,7 +65,8 @@ Set `VOTE_TIMEOUT_SECONDS` to control the voting window (45 seconds by default).
 
 After joining, each participant receives a private CLI command containing a one-time import token.
 The token expires after 30 minutes, is replaced when a new one is issued, and is consumed by the
-first successful import. The CLI scans and analyzes local history, lets the participant select
+first successful import. Before reading any history, the CLI verifies that the token is active
+without consuming it. The CLI then scans and analyzes local history, lets the participant select
 prompts, and imports only those selected prompt texts and citations over HTTPS (or HTTP on
 localhost for development). A round shows one prompt with up to four possible authors. It reveals when
 every participant has voted or the voting window expires, then any participant can continue.
@@ -83,7 +84,7 @@ History is read locally and without modification. Only user prompt text is consi
 ## Run
 
 ```sh
-npx --yes @xz3dev/who-said-dis@0.4.1
+npx --yes @xz3dev/who-said-dis@0.4.2
 ```
 
 The wizard will:

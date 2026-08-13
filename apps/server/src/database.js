@@ -196,6 +196,17 @@ export function issueImportToken(database, publicId, sessionToken, now = Date.no
   };
 }
 
+export function verifyImportToken(database, publicId, importToken, now = Date.now()) {
+  cleanupExpiredRooms(database, now);
+  const participant = participantForImportToken(database, publicId, importToken, now);
+  if (!participant) return { error: "UNAUTHORIZED" };
+  return {
+    valid: true,
+    name: participant.name,
+    expiresAt: new Date(participant.import_token_expires_at).toISOString()
+  };
+}
+
 export function importPrompts(database, publicId, importToken, values, now = Date.now()) {
   cleanupExpiredRooms(database, now);
   if (!Array.isArray(values) || values.length < 1 || values.length > MAX_PROMPTS_PER_IMPORT) {
@@ -338,7 +349,9 @@ function participantForSession(database, publicId, token) {
 function participantForImportToken(database, publicId, token, now) {
   if (typeof token !== "string" || token.length < 20 || token.length > 100) return null;
   return database.prepare(
-    `SELECT p.id, p.name, p.room_id, t.id AS import_token_id FROM import_tokens t
+    `SELECT p.id, p.name, p.room_id, t.id AS import_token_id,
+            t.expires_at AS import_token_expires_at
+     FROM import_tokens t
      JOIN participants p ON p.id = t.participant_id
      JOIN rooms r ON r.id = p.room_id
      WHERE r.public_id = ? AND t.token_hash = ? AND t.expires_at > ?`

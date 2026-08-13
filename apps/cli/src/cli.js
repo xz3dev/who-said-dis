@@ -37,6 +37,9 @@ export async function runCli(args, io = console, dependencies = {}) {
   }
 
   if (options.command === "import") {
+    const fetchImpl = dependencies.fetchImpl || fetch;
+    const verified = await verifyImportToken(options.room, options.token, fetchImpl);
+    io.log(`Import code verified for ${safeTerminalText(verified.name)}.`);
     const result = await runInteractiveCli({ io, ...dependencies });
     if (result.status !== "complete" || result.selections.length === 0) {
       io.log("No prompts imported.");
@@ -46,7 +49,7 @@ export async function runCli(args, io = console, dependencies = {}) {
       options.room,
       options.token,
       result.selections,
-      dependencies.fetchImpl || fetch
+      fetchImpl
     );
     io.log(`\nImported ${imported.imported} prompt${imported.imported === 1 ? "" : "s"} for ${safeTerminalText(imported.name)}.`);
     return;
@@ -115,7 +118,7 @@ function parseArgs(args) {
         break;
       case "--token":
         if (!importing) throw new Error("--token is only available with the import command");
-        options.token = requiredValue(args, ++index, argument);
+        options.token = requiredImportToken(args, ++index);
         break;
       case "--scan":
         requireFunny(funny, argument);
@@ -169,6 +172,14 @@ function requiredValue(args, index, option) {
   return value;
 }
 
+function requiredImportToken(args, index) {
+  const value = args[index];
+  if (typeof value !== "string" || !/^[A-Za-z0-9_-]{20,100}$/.test(value)) {
+    throw new Error("The import code is invalid");
+  }
+  return value;
+}
+
 function formatPrompt(prompt, displayIndex) {
   const origin = safeTerminalText(prompt.client === "unknown" ? prompt.surface : prompt.client);
   const header = `${displayIndex}. ${safeTerminalText(prompt.timestamp || "unknown time")} · ${origin} · ${safeTerminalText(prompt.sessionId)}`;
@@ -203,6 +214,43 @@ prompt text through your authenticated Codex CLI connection for model inference.
 }
 
 export async function uploadPrompts(roomUrl, token, prompts, fetchImpl = fetch) {
+  const { origin, roomId } = parseImportTarget(roomUrl, token);
+  const response = await fetchImpl(`${origin}/api/rooms/${roomId}/prompts`, {
+    method: "POST",
+    redirect: "error",
+    signal: AbortSignal.timeout(30_000),
+    headers: {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      prompts: prompts.map((prompt) => ({ text: prompt.text, citation: prompt.citation }))
+    })
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.error || `Import failed (${response.status})`);
+  return body;
+}
+
+export async function verifyImportToken(roomUrl, token, fetchImpl = fetch) {
+  const { origin, roomId } = parseImportTarget(roomUrl, token);
+  const response = await fetchImpl(`${origin}/api/rooms/${roomId}/import-token/verify`, {
+    method: "GET",
+    redirect: "error",
+    signal: AbortSignal.timeout(30_000),
+    headers: {
+      accept: "application/json",
+      authorization: `Bearer ${token}`
+    }
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok || body.valid !== true) {
+    throw new Error(body.error || `Import-code verification failed (${response.status})`);
+  }
+  return body;
+}
+
+function parseImportTarget(roomUrl, token) {
   let url;
   try {
     url = new URL(roomUrl);
@@ -219,22 +267,7 @@ export async function uploadPrompts(roomUrl, token, prompts, fetchImpl = fetch) 
   if (typeof token !== "string" || !/^[A-Za-z0-9_-]{20,100}$/.test(token)) {
     throw new Error("The import code is invalid");
   }
-
-  const response = await fetchImpl(`${url.origin}/api/rooms/${match[1]}/prompts`, {
-    method: "POST",
-    redirect: "error",
-    signal: AbortSignal.timeout(30_000),
-    headers: {
-      authorization: `Bearer ${token}`,
-      "content-type": "application/json"
-    },
-    body: JSON.stringify({
-      prompts: prompts.map((prompt) => ({ text: prompt.text, citation: prompt.citation }))
-    })
-  });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.error || `Import failed (${response.status})`);
-  return body;
+  return { origin: url.origin, roomId: match[1] };
 }
 
 async function runFunnyCommand(options, io) {

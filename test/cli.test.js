@@ -3,7 +3,7 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { runCli, uploadPrompts } from "../apps/cli/src/cli.js";
+import { runCli, uploadPrompts, verifyImportToken } from "../apps/cli/src/cli.js";
 import { safeTerminalText } from "../apps/cli/src/terminal.js";
 
 test("prints machine-readable JSON", async () => {
@@ -53,15 +53,43 @@ test("uploads only selected prompt text and citations with the room token", asyn
   assert.equal(request.options.body.includes("private/file"), false);
 });
 
+test("verifies an import token without uploading prompts", async () => {
+  let request;
+  const result = await verifyImportToken(
+    "http://localhost:3000/room/abc_12345678",
+    "-valid-import-token_1234567890",
+    async (url, options) => {
+      request = { url, options };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ valid: true, name: "Ada", expiresAt: "2026-08-13T12:00:00.000Z" })
+      };
+    }
+  );
+
+  assert.equal(result.valid, true);
+  assert.equal(request.url, "http://localhost:3000/api/rooms/abc_12345678/import-token/verify");
+  assert.equal(request.options.method, "GET");
+  assert.equal(request.options.headers.authorization, "Bearer -valid-import-token_1234567890");
+  assert.equal("body" in request.options, false);
+});
+
 test("import command runs the picker and sends its selections", async () => {
   const selected = { text: "picked prompt", citation: "codex://picked" };
+  const token = "-valid_token_12345678901234567890";
   let uploaded;
+  let authorization;
+  let verified = false;
   const output = [];
   const provider = {
     id: "codex",
     displayName: "Codex",
     analyzerLabel: "Luna",
-    readPrompts: async () => [selected],
+    readPrompts: async () => {
+      assert.equal(verified, true);
+      return [selected];
+    },
     analyze: async () => [{ prompt: selected }]
   };
   await runCli(
@@ -70,22 +98,59 @@ test("import command runs the picker and sends its selections", async () => {
       "--room",
       "http://localhost:3000/room/test_room_12",
       "--token",
-      "valid_token_12345678901234567890"
+      token
     ],
     { log: (value) => output.push(value), warn: () => {} },
     {
       scanInstallations: async () => [{ provider, installation: { label: "codex: /bin/codex" } }],
       promptApi: { checkbox: async () => [selected] },
       spinnerFactory: () => ({ start() {}, stop() {} }),
-      fetchImpl: async (_url, options) => {
+      fetchImpl: async (url, options) => {
+        authorization = options.headers.authorization;
+        if (url.endsWith("/import-token/verify")) {
+          verified = true;
+          return { ok: true, status: 200, json: async () => ({ valid: true, name: "Ada" }) };
+        }
         uploaded = JSON.parse(options.body).prompts;
-        return { ok: true, json: async () => ({ imported: 1, name: "Ada" }) };
+        return { ok: true, status: 201, json: async () => ({ imported: 1, name: "Ada" }) };
       }
     }
   );
 
   assert.deepEqual(uploaded, [{ text: "picked prompt", citation: "codex://picked" }]);
+  assert.equal(verified, true);
+  assert.equal(authorization, `Bearer ${token}`);
+  assert.match(output[0], /Import code verified for Ada/);
   assert.match(output.at(-1), /Imported 1 prompt for Ada/);
+});
+
+test("does not scan prompt history when import-token verification fails", async () => {
+  let scanned = false;
+  await assert.rejects(
+    () => runCli(
+      [
+        "import",
+        "--room",
+        "http://localhost:3000/room/test_room_12",
+        "--token",
+        "-invalid_token_123456789012345678"
+      ],
+      { log: () => {}, warn: () => {} },
+      {
+        scanInstallations: async () => {
+          scanned = true;
+          return [];
+        },
+        fetchImpl: async () => ({
+          ok: false,
+          status: 401,
+          json: async () => ({ error: "This import token is invalid, expired, or already used." })
+        })
+      }
+    ),
+    /invalid, expired, or already used/
+  );
+  assert.equal(scanned, false);
 });
 
 test("refuses plaintext remote uploads and unsafe room URL components", async () => {

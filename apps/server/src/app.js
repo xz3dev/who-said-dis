@@ -15,7 +15,8 @@ import {
   joinRoom,
   listVotingRounds,
   revealExpiredRound,
-  startNextRound
+  startNextRound,
+  verifyImportToken
 } from "./database.js";
 import { createRateLimiter } from "./rate-limit.js";
 import { RoomEventHub } from "./room-events.js";
@@ -121,6 +122,22 @@ export function createApp({ database, config, fetchImpl = fetch, eventHub = new 
           expiresAt: issued.expiresAt,
           name: issued.name
         });
+      }
+
+      const importTokenVerifyMatch = url.pathname.match(
+        /^\/api\/rooms\/([A-Za-z0-9_-]{12})\/import-token\/verify$/
+      );
+      if (request.method === "GET" && importTokenVerifyMatch) {
+        const roomId = importTokenVerifyMatch[1];
+        if (
+          !allow("global:import-token-verify", 1_000, 60_000) ||
+          !allow(`import-token-verify:${ip}`, 60, 10 * 60 * 1000)
+        ) return json(response, 429, { error: "Too many import-code checks. Try again later." });
+        const verified = verifyImportToken(database, roomId, bearerToken(request));
+        if (verified.error) {
+          return json(response, 401, { error: "This import token is invalid, expired, or already used." });
+        }
+        return json(response, 200, verified);
       }
 
       const promptsMatch = url.pathname.match(/^\/api\/rooms\/([A-Za-z0-9_-]{12})\/prompts$/);

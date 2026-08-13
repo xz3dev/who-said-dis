@@ -16,7 +16,8 @@ import {
   issueImportToken,
   joinRoom,
   openDatabase,
-  startNextRound
+  startNextRound,
+  verifyImportToken
 } from "../apps/server/src/database.js";
 import { createRateLimiter } from "../apps/server/src/rate-limit.js";
 import { RoomEventHub } from "../apps/server/src/room-events.js";
@@ -37,7 +38,7 @@ test("advertises the local or published CLI command for the current environment"
   const timed = readConfig({ TURNSTILE_BYPASS: "1", VOTE_TIMEOUT_SECONDS: "12" });
 
   assert.equal(development.cliCommand, "npm run cli --");
-  assert.equal(production.cliCommand, "npx --yes @xz3dev/who-said-dis@0.4.1");
+  assert.equal(production.cliCommand, "npx --yes @xz3dev/who-said-dis@0.4.2");
   assert.equal(production.legal.email, "legal@example.com");
   assert.equal(overridden.cliCommand, "custom-cli --dev");
   assert.equal(development.voteTimeoutSeconds, 45);
@@ -86,13 +87,30 @@ test("rotates and consumes one-time import tokens", () => {
   const participant = joinRoom(database, room.publicId, room.joinToken, "Ada", now + 1);
   const first = issueImportToken(database, room.publicId, participant.sessionToken, now + 2);
   const second = issueImportToken(database, room.publicId, participant.sessionToken, now + 3);
+  const otherRoom = createRoom(database, now + 3);
 
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM import_tokens").get().count, 1);
+  assert.equal(verifyImportToken(database, room.publicId, first.token, now + 4).error, "UNAUTHORIZED");
+  assert.equal(verifyImportToken(database, otherRoom.publicId, second.token, now + 4).error, "UNAUTHORIZED");
+  assert.deepEqual(verifyImportToken(database, room.publicId, second.token, now + 4), {
+    valid: true,
+    name: "Ada",
+    expiresAt: second.expiresAt
+  });
+  assert.equal(verifyImportToken(database, room.publicId, second.token, now + 5).valid, true);
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM import_tokens").get().count, 1);
   assert.equal(importPrompts(database, room.publicId, first.token, [{ text: "old code" }], now + 4).error, "UNAUTHORIZED");
-  assert.equal(importPrompts(database, room.publicId, second.token, [{ text: "accepted" }], now + 5).imported, 1);
-  assert.equal(importPrompts(database, room.publicId, second.token, [{ text: "replay" }], now + 6).error, "UNAUTHORIZED");
+  assert.equal(importPrompts(database, room.publicId, second.token, [{ text: "accepted" }], now + 6).imported, 1);
+  assert.equal(verifyImportToken(database, room.publicId, second.token, now + 7).error, "UNAUTHORIZED");
+  assert.equal(importPrompts(database, room.publicId, second.token, [{ text: "replay" }], now + 7).error, "UNAUTHORIZED");
   assert.equal(database.prepare("SELECT COUNT(*) AS count FROM import_tokens").get().count, 0);
   assert.equal(Date.parse(second.expiresAt), now + 3 + 30 * 60 * 1000);
+
+  const expiring = issueImportToken(database, room.publicId, participant.sessionToken, now + 8);
+  assert.equal(
+    verifyImportToken(database, room.publicId, expiring.token, Date.parse(expiring.expiresAt)).error,
+    "UNAUTHORIZED"
+  );
   database.close();
 });
 
@@ -277,12 +295,32 @@ test("HTTP flow creates an empty room and joins it through the returned URL", as
   );
   assert.equal("token" in importDetails, false);
   const importToken = importDetails.command.match(/--token ([A-Za-z0-9_-]+)$/)[1];
+  const firstVerification = await fetch(
+    `${base}/api/rooms/${created.roomId}/import-token/verify`,
+    { headers: { authorization: `Bearer ${importToken}` } }
+  );
+  assert.equal(firstVerification.status, 200);
+  assert.deepEqual(await firstVerification.json(), {
+    valid: true,
+    name: "Grace",
+    expiresAt: importDetails.expiresAt
+  });
+  const secondVerification = await fetch(
+    `${base}/api/rooms/${created.roomId}/import-token/verify`,
+    { headers: { authorization: `Bearer ${importToken}` } }
+  );
+  assert.equal(secondVerification.status, 200);
   const importedResponse = await fetch(`${base}/api/rooms/${created.roomId}/prompts`, {
     method: "POST",
     headers: { authorization: `Bearer ${importToken}`, "content-type": "application/json" },
     body: JSON.stringify({ prompts: [{ text: "actual imported prompt", citation: "codex://test/http" }] })
   });
   assert.equal(importedResponse.status, 201);
+  const consumedVerification = await fetch(
+    `${base}/api/rooms/${created.roomId}/import-token/verify`,
+    { headers: { authorization: `Bearer ${importToken}` } }
+  );
+  assert.equal(consumedVerification.status, 401);
   const roomResponse = await fetch(`${base}/api/rooms/${created.roomId}`, { headers: { cookie: sessionCookie } });
   assert.equal(roomResponse.status, 200);
   const roomState = await roomResponse.json();
