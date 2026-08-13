@@ -7,20 +7,21 @@ The client finds memorable prompts in your local Codex and Claude Code history, 
 ## Play the game
 
 1. Open [who-said-dis.com](https://who-said-dis.com) and create or join a room.
-2. Enter your name, then copy the CLI command and one-time import code shown in the room.
+2. Enter your name, then copy the private CLI command shown in the room.
 3. Paste the command into a terminal. It will look similar to:
 
    ```sh
-   npx --yes @xz3dev/who-said-dis@0.4.1 import --room https://who-said-dis.com/room/...
+   npx --yes @xz3dev/who-said-dis@0.4.1 import --room https://who-said-dis.com/room/... --token ...
    ```
 
-4. Choose the prompts you want to add with Space, press Enter, and paste your import code when prompted.
+4. Choose the prompts you want to add with Space, then press Enter.
 5. Return to the browser and wait for everyone else to finish. The game will ask the room to guess who wrote each prompt.
 
-The import code is personal, expires after 30 minutes, and works once. Refresh the room page to
-replace an expired code. Do not share it with the other players. The client refuses plaintext HTTP
-uploads except to localhost.
-F
+The token embedded in the command is personal, expires after 30 minutes, and works once. Refresh
+the room page to replace an expired token. Do not share the command with other players, and remove
+it from your shell history if you share that account. The client refuses plaintext HTTP uploads
+except to localhost.
+
 ## Requirements
 
 - Node.js 18 or newer

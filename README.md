@@ -63,8 +63,8 @@ an exact, versioned `npx --yes @xz3dev/who-said-dis@<version>` command when
 Set `CLI_COMMAND` to override the command prefix for another deployment environment.
 Set `VOTE_TIMEOUT_SECONDS` to control the voting window (45 seconds by default).
 
-After joining, each participant receives a CLI command and a separate, masked-entry import code.
-The code expires after 30 minutes, is replaced when a new one is issued, and is consumed by the
+After joining, each participant receives a private CLI command containing a one-time import token.
+The token expires after 30 minutes, is replaced when a new one is issued, and is consumed by the
 first successful import. The CLI scans and analyzes local history, lets the participant select
 prompts, and imports only those selected prompt texts and citations over HTTPS (or HTTP on
 localhost for development). A round shows one prompt with up to four possible authors. It reveals when

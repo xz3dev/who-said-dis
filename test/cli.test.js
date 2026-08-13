@@ -65,13 +65,18 @@ test("import command runs the picker and sends its selections", async () => {
     analyze: async () => [{ prompt: selected }]
   };
   await runCli(
-    ["import", "--room", "http://localhost:3000/room/test_room_12"],
+    [
+      "import",
+      "--room",
+      "http://localhost:3000/room/test_room_12",
+      "--token",
+      "valid_token_12345678901234567890"
+    ],
     { log: (value) => output.push(value), warn: () => {} },
     {
       scanInstallations: async () => [{ provider, installation: { label: "codex: /bin/codex" } }],
       promptApi: { checkbox: async () => [selected] },
       spinnerFactory: () => ({ start() {}, stop() {} }),
-      tokenPrompt: async () => "valid_token_12345678901234567890",
       fetchImpl: async (_url, options) => {
         uploaded = JSON.parse(options.body).prompts;
         return { ok: true, json: async () => ({ imported: 1, name: "Ada" }) };

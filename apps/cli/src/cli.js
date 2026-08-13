@@ -1,4 +1,3 @@
-import { password } from "@inquirer/prompts";
 import { readFile } from "node:fs/promises";
 import { isIP } from "node:net";
 import { fileURLToPath } from "node:url";
@@ -43,11 +42,12 @@ export async function runCli(args, io = console, dependencies = {}) {
       io.log("No prompts imported.");
       return;
     }
-    const importToken = await (dependencies.tokenPrompt || password)({
-      message: "Paste the one-time import code:",
-      mask: "*"
-    });
-    const imported = await uploadPrompts(options.room, importToken, result.selections, dependencies.fetchImpl || fetch);
+    const imported = await uploadPrompts(
+      options.room,
+      options.token,
+      result.selections,
+      dependencies.fetchImpl || fetch
+    );
     io.log(`\nImported ${imported.imported} prompt${imported.imported === 1 ? "" : "s"} for ${safeTerminalText(imported.name)}.`);
     return;
   }
@@ -113,6 +113,10 @@ function parseArgs(args) {
         if (!importing) throw new Error("--room is only available with the import command");
         options.room = requiredValue(args, ++index, argument);
         break;
+      case "--token":
+        if (!importing) throw new Error("--token is only available with the import command");
+        options.token = requiredValue(args, ++index, argument);
+        break;
       case "--scan":
         requireFunny(funny, argument);
         options.scan = requiredValue(args, ++index, argument);
@@ -147,6 +151,7 @@ function parseArgs(args) {
 
   if (importing && !options.help && !options.version) {
     if (!options.room) throw new Error("import requires --room");
+    if (!options.token) throw new Error("import requires --token");
   }
 
   return options;
@@ -175,7 +180,7 @@ function helpText() {
 
 Usage:
   who-said-dis                 Start the interactive wizard
-  who-said-dis import --room <url>
+  who-said-dis import --room <url> --token <one-time-token>
   who-said-dis [list options]  Inspect normalized prompt records
   who-said-dis funny [options]
 

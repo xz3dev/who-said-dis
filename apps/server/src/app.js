@@ -117,8 +117,7 @@ export function createApp({ database, config, fetchImpl = fetch, eventHub = new 
         if (issued.error) return json(response, 401, { error: "Join this room to import prompts." });
         const roomUrl = `${config.publicUrl}/room/${roomId}`;
         return json(response, 201, {
-          command: `${config.cliCommand} import --room ${roomUrl}`,
-          token: issued.token,
+          command: `${config.cliCommand} import --room ${roomUrl} --token ${issued.token}`,
           expiresAt: issued.expiresAt,
           name: issued.name
         });

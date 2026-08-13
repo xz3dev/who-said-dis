@@ -10,7 +10,7 @@ const state = {
 };
 
 const elements = Object.fromEntries(
-  ["landing", "join", "room", "missing", "create-form", "create-button", "create-error", "join-form", "join-button", "join-error", "name", "room-title", "room-subtitle", "lobby", "game", "invite-url", "copy-invite", "copy-status", "people", "people-count", "cli-command", "copy-cli", "cli-token", "copy-token", "cli-status", "prompt-total", "start-game", "start-error", "prompt-card", "round-label", "timer", "prompt-text", "answer-title", "vote-progress", "answer-options", "vote-status", "reveal-summary", "round-results", "next-prompt", "final-recap", "recap-grid", "score-podium"]
+  ["landing", "join", "room", "missing", "create-form", "create-button", "create-error", "join-form", "join-button", "join-error", "name", "room-title", "room-subtitle", "lobby", "game", "invite-url", "copy-invite", "copy-status", "people", "people-count", "cli-command", "copy-cli", "cli-status", "prompt-total", "start-game", "start-error", "prompt-card", "round-label", "timer", "prompt-text", "answer-title", "vote-progress", "answer-options", "vote-status", "reveal-summary", "round-results", "next-prompt", "final-recap", "recap-grid", "score-podium"]
     .map((id) => [id, document.getElementById(id)])
 );
 
@@ -85,12 +85,7 @@ elements["copy-invite"].addEventListener("click", async () => {
 
 elements["copy-cli"].addEventListener("click", async () => {
   await navigator.clipboard.writeText(elements["cli-command"].textContent);
-  elements["cli-status"].textContent = "Command copied. Run it, then paste the one-time code.";
-});
-
-elements["copy-token"].addEventListener("click", async () => {
-  await navigator.clipboard.writeText(elements["cli-token"].textContent);
-  elements["cli-status"].textContent = "One-time code copied. It expires in 30 minutes and works once.";
+  elements["cli-status"].textContent = "Command copied. Its import token expires in 30 minutes and works once.";
 });
 
 elements["start-game"].addEventListener("click", () => advanceGame("start"));
@@ -161,12 +156,9 @@ async function prepareImportCommand(roomId) {
   try {
     const result = await api(`/api/rooms/${roomId}/import-token`, { method: "POST", body: "{}" });
     elements["cli-command"].textContent = result.command;
-    elements["cli-token"].textContent = result.token;
     elements["copy-cli"].disabled = false;
-    elements["copy-token"].disabled = false;
   } catch (error) {
     elements["cli-command"].textContent = "Could not create an import command.";
-    elements["cli-token"].textContent = "Could not create an import code.";
     elements["cli-status"].textContent = error.message;
   }
 }

@@ -271,8 +271,12 @@ test("HTTP flow creates an empty room and joins it through the returned URL", as
   });
   assert.equal(importTokenResponse.status, 201);
   const importDetails = await importTokenResponse.json();
-  assert.equal(importDetails.command, `npm run cli -- import --room ${base}/room/${created.roomId}`);
-  const importToken = importDetails.token;
+  assert.match(
+    importDetails.command,
+    new RegExp(`^npm run cli -- import --room ${base}/room/${created.roomId} --token [A-Za-z0-9_-]+$`)
+  );
+  assert.equal("token" in importDetails, false);
+  const importToken = importDetails.command.match(/--token ([A-Za-z0-9_-]+)$/)[1];
   const importedResponse = await fetch(`${base}/api/rooms/${created.roomId}/prompts`, {
     method: "POST",
     headers: { authorization: `Bearer ${importToken}`, "content-type": "application/json" },
@@ -530,7 +534,8 @@ test("server timer reveals an unfinished vote and broadcasts the result", async 
     headers: { cookie: participant.cookie, "content-type": "application/json" },
     body: "{}"
   });
-  const token = (await importResponse.json()).token;
+  const command = (await importResponse.json()).command;
+  const token = command.match(/--token ([A-Za-z0-9_-]+)$/)[1];
   await fetch(`${base}/api/rooms/${room.roomId}/prompts`, {
     method: "POST",
     headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
