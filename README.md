@@ -19,9 +19,17 @@ The backend stores only token hashes. Rooms expire after 24 hours and are limite
 Copy `.env.example` to `.env` and configure at least:
 
 ```dotenv
+PUBLIC_URL=https://who-said-dis.com
 TURNSTILE_SITE_KEY=your-public-site-key
 TURNSTILE_SECRET=your-private-secret
+LEGAL_NAME=Full legal name or registered entity
+LEGAL_ADDRESS=Street and number, postal code, city, country
+LEGAL_EMAIL=legal@example.com
 ```
+
+Production startup requires those three legal-contact values. If applicable, also set
+`LEGAL_REPRESENTATIVE`, `LEGAL_REGISTER`, and `LEGAL_REGISTRATION_NUMBER`. They populate the linked
+`/imprint` and `/privacy` pages; do not publish placeholder details.
 
 For production, configure the Turnstile widget for `who-said-dis.com`, then run:
 
@@ -29,8 +37,12 @@ For production, configure the Turnstile widget for `who-said-dis.com`, then run:
 docker compose up --build -d
 ```
 
-The service listens on port 3000 and persists its SQLite database in the
+The service binds to `127.0.0.1:3000` by default and persists its SQLite database in the
 `who-said-dis-data` Docker volume. Put an HTTPS reverse proxy or Cloudflare Tunnel in front of it.
+If the proxy reaches Docker over another interface, set `BIND_ADDRESS` explicitly. Leave
+`TRUST_PROXY=0` unless client-IP forwarding is required. When enabling it, set
+`TRUSTED_PROXY_IPS` to the comma-separated IP addresses of the direct proxy peers; forwarded
+addresses from any other peer are ignored.
 Room presence uses an authenticated WebSocket at `/api/rooms/*/socket`. Only participants with a
 live socket are shown in the room. The server sends a WebSocket ping every 20 seconds and drops a
 connection that misses the next pong; the browser reconnects automatically with exponential
@@ -43,15 +55,19 @@ For local UI development with Turnstile deliberately bypassed:
 TURNSTILE_BYPASS=1 npm run dev
 ```
 
-Never enable `TURNSTILE_BYPASS` in production.
+Production startup rejects `TURNSTILE_BYPASS=1`, plaintext `PUBLIC_URL`, and disabled secure
+cookies.
 The lobby uses `npm run cli --` during local development and
-`npx @xz3dev/who-said-dis` when `NODE_ENV=production` to build its private import command.
+an exact, versioned `npx --yes @xz3dev/who-said-dis@<version>` command when
+`NODE_ENV=production`.
 Set `CLI_COMMAND` to override the command prefix for another deployment environment.
 Set `VOTE_TIMEOUT_SECONDS` to control the voting window (45 seconds by default).
 
-After joining, each participant receives a private CLI command tied to their room name. The CLI
-scans and analyzes local history, lets them select prompts, and imports only those selected prompt
-texts and citations. A round shows one prompt with up to four possible authors. It reveals when
+After joining, each participant receives a CLI command and a separate, masked-entry import code.
+The code expires after 30 minutes, is replaced when a new one is issued, and is consumed by the
+first successful import. The CLI scans and analyzes local history, lets the participant select
+prompts, and imports only those selected prompt texts and citations over HTTPS (or HTTP on
+localhost for development). A round shows one prompt with up to four possible authors. It reveals when
 every participant has voted or the voting window expires, then any participant can continue.
 Correct answers earn 100–200 points: the base 100 points are multiplied by a speed factor from
 1× at the deadline to 2× at the start of the voting window. Wrong or missing answers earn 0.
@@ -60,12 +76,14 @@ Correct answers earn 100–200 points: the base 100 points are multiplied by a s
 
 An interactive CLI that discovers locally installed Codex and Claude Code clients and helps you select memorable prompts from their local history.
 
+The npm-facing client guide lives in [`apps/cli/README.md`](apps/cli/README.md).
+
 History is read locally and without modification. Only user prompt text is considered—attachments, model output, tool output, and system context are ignored.
 
 ## Run
 
 ```sh
-npx @xz3dev/who-said-dis
+npx --yes @xz3dev/who-said-dis@0.4.1
 ```
 
 The wizard will:
@@ -106,8 +124,11 @@ a bounded shortlist (250 by default) to the selected provider's fast analyzer—
 Haiku for Claude—at medium reasoning effort through the selected local CLI. The interactive wizard shows the five resulting prompt
 texts without generated explanations, sentiment, or labels.
 
-The analyzer subprocess cannot use tools and does not persist its analysis session. Codex runs
-ephemerally in a read-only sandbox; Claude runs with tools disabled and session persistence off.
+The analyzer subprocess does not persist its analysis session. Both analyzers run from a fresh,
+empty temporary directory. Codex ignores user configuration and execution rules, disables its
+tool-capable features and web search, and runs ephemerally in a read-only sandbox. Claude uses safe
+mode with tools, plugins, hooks, MCP configuration, project instructions, skills, and session
+persistence disabled.
 Model inference still uses the selected client's authenticated connection, so shortlisted prompt
 text is sent to that provider's configured service.
 
@@ -163,7 +184,7 @@ Requires Node.js 18 or newer.
 
 ```sh
 npm test
-npm pack --dry-run
+npm run pack:cli
 ```
 
 ## License

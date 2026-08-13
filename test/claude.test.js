@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
-import { chmod, mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { access, chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import test from "node:test";
 import { readClaudePrompts, resolveClaudeHome } from "../apps/cli/src/claude.js";
 import {
   buildClaudeJudgeArgs,
+  runClaudeFunnyJudge,
   scanClaudeInstallations
 } from "../apps/cli/src/providers/claude.js";
 
@@ -84,7 +85,8 @@ test("Claude scanner finds an executable and its configured data directory", asy
 
 test("Claude judge uses Haiku without tools or session persistence", () => {
   const args = buildClaudeJudgeArgs({ type: "object" });
-  assert.deepEqual(args.slice(0, 5), ["--print", "--model", "haiku", "--effort", "medium"]);
+  assert.deepEqual(args.slice(0, 5), ["--print", "--safe-mode", "--strict-mcp-config", "--disable-slash-commands", "--no-chrome"]);
+  assert.deepEqual(args.slice(args.indexOf("--model"), args.indexOf("--model") + 4), ["--model", "haiku", "--effort", "medium"]);
   assert.deepEqual(args.slice(args.indexOf("--tools"), args.indexOf("--tools") + 2), ["--tools", ""]);
   assert.ok(args.includes("--no-session-persistence"));
   assert.ok(args.includes("--json-schema"));
@@ -93,4 +95,37 @@ test("Claude judge uses Haiku without tools or session persistence", () => {
 
 test("resolves an explicit Claude home", () => {
   assert.equal(resolveClaudeHome("/tmp/custom-claude"), "/tmp/custom-claude");
+});
+
+test("Claude judge disables hooks and tools in a disposable empty directory", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "who-said-dis-claude-judge-test-"));
+  const executable = join(directory, "fake-claude");
+  const capture = join(directory, "capture.json");
+  context.after(async () => rm(directory, { recursive: true, force: true }));
+  await writeFile(executable, `#!/usr/bin/env node
+const fs = require("node:fs");
+const args = process.argv.slice(2);
+process.stdin.resume();
+process.stdin.on("end", () => {
+  fs.writeFileSync(${JSON.stringify(capture)}, JSON.stringify({ cwd: process.cwd(), args }));
+  process.stdout.write(JSON.stringify({ structured_output: { results: [{ id: "candidate-0001", score: 88 }] } }));
+});
+`);
+  await chmod(executable, 0o755);
+
+  const result = await runClaudeFunnyJudge(
+    [{ id: "candidate-0001", heuristicScore: 5, prompt: { text: "WHY?!" } }],
+    { top: 1, model: "haiku", effort: "medium", claudeBinary: executable }
+  );
+  const invocation = JSON.parse(await readFile(capture, "utf8"));
+
+  assert.equal(result[0].id, "candidate-0001");
+  assert.notEqual(invocation.cwd, process.cwd());
+  assert.ok(invocation.args.includes("--safe-mode"));
+  assert.ok(invocation.args.includes("--strict-mcp-config"));
+  assert.deepEqual(
+    invocation.args.slice(invocation.args.indexOf("--tools"), invocation.args.indexOf("--tools") + 2),
+    ["--tools", ""]
+  );
+  await assert.rejects(() => access(invocation.cwd));
 });

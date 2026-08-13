@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Data privacy declaration for who said dis?" />
+    <title>Privacy · who said dis?</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="brand" aria-label="who said dis home">
+        <a href="/">who said dis<span>?</span></a>
+      </header>
+
+      <article class="legal-page privacy-page">
+        <div class="eyebrow">Data privacy declaration</div>
+        <h1>Privacy</h1>
+        <p class="legal-intro">This notice explains what personal data who said dis? processes, why it is needed, who receives it, and how long it is kept.</p>
+
+        <aside class="privacy-summary" aria-label="Privacy summary">
+          <strong>The short version</strong>
+          <p>No account, advertising, or audience analytics. Your history is scanned locally. Only prompts you select are uploaded to a private room, and room data is deleted after 24 hours.</p>
+        </aside>
+
+        <section class="legal-section">
+          <h2>1. Controller</h2>
+          <div>
+            <address>
+              <strong>{{LEGAL_NAME}}</strong><br />
+              {{LEGAL_ADDRESS}}
+            </address>
+            <p>Email: <a href="{{LEGAL_EMAIL_URL}}">{{LEGAL_EMAIL}}</a></p>
+          </div>
+        </section>
+
+        <section class="legal-section">
+          <h2>2. Visiting the site</h2>
+          <div>
+            <p>When you open the site, the server necessarily receives your IP address, request time, requested address and method, and technical request headers such as your browser identifier. These data are used to deliver the site, maintain secure connections, prevent abuse, and diagnose errors.</p>
+            <p>The application temporarily uses IP addresses in memory for request-rate and connection limits. It does not write IP addresses to the game database. Infrastructure providers may process customary access and security logs under their configured retention periods.</p>
+            <p>The legal basis is Article 6(1)(f) GDPR. Our legitimate interests are reliable delivery, IT security, abuse prevention, and protection of the service and its users.</p>
+          </div>
+        </section>
+
+        <section class="legal-section">
+          <h2>3. Rooms and gameplay</h2>
+          <div>
+            <p>When you join and play, we process the room identifier, your chosen display name, join time, selected prompt text, local citation identifier, votes, scores, and technical authentication tokens. Authentication and invite tokens are stored on the server only as cryptographic hashes.</p>
+            <p>These data are needed to create the room, show its participants, import the prompts you select, run rounds, reveal authors and votes, and calculate scores. Other people in the same room can see display names, played prompts, answers, and results. Anyone with the private invitation link can request to join, so share it only with intended players.</p>
+            <p>The legal basis is Article 6(1)(b) GDPR because processing is necessary to provide the game you request. Security measures and abuse controls are additionally based on Article 6(1)(f) GDPR.</p>
+            <p>Rooms and all associated participants, prompts, votes, citations, and tokens are automatically deleted after 24 hours. One-time import codes expire after 30 minutes or immediately after use. In-memory rate-limit records expire after ten minutes or one hour, depending on the protected action, and are also lost when the service restarts.</p>
+          </div>
+        </section>
+
+        <section class="legal-section">
+          <h2>4. Local prompt analysis</h2>
+          <div>
+            <p>The command-line client reads supported AI-client histories locally and ignores model output, tool output, attachments, and system context. The operator does not receive your history or analysis shortlist.</p>
+            <p>For ranking, a bounded shortlist of prompt text is sent through either your authenticated Codex connection to OpenAI or your authenticated Claude Code connection to Anthropic. That processing is governed by your account and the selected provider’s terms and privacy notice. Review the <a href="https://openai.com/policies/privacy-policy/" rel="external">OpenAI privacy policy</a> or <a href="https://www.anthropic.com/legal/privacy" rel="external">Anthropic privacy policy</a>, as applicable.</p>
+            <p>Only the prompts you explicitly confirm, together with their local citation identifiers, are sent to the who said dis? room. Do not select confidential information, special-category data, or third-party personal data unless you are permitted to share it with everyone in that room.</p>
+          </div>
+        </section>
+
+        <section class="legal-section">
+          <h2>5. Cloudflare Turnstile</h2>
+          <div>
+            <p>We use Cloudflare Turnstile to protect room creation and joining from automated abuse. The widget connects directly to Cloudflare, Inc., 101 Townsend Street, San Francisco, California 94107, USA. Cloudflare processes signals including the IP address, TLS fingerprint, user-agent header, site key, originating site, browser characteristics, and interaction signals to distinguish people from bots. Our server also sends the IP address and the short-lived verification token to Cloudflare for validation.</p>
+            <p>For protecting this service, Cloudflare acts as our processor; Cloudflare also states that it processes signals as an independent controller to improve Turnstile. The legal basis on our side is Article 6(1)(f) GDPR. Our legitimate interest is protecting the free service and its users against bots and abuse. Any storage on or access to your device that is strictly necessary for this protection is based on section 25(2)(2) TDDDG.</p>
+            <p>Cloudflare and its subprocessors may process data outside the EEA. Where required, transfers are protected by the EU Standard Contractual Clauses and supplementary safeguards in Cloudflare’s data processing addendum. Details are available in the <a href="https://www.cloudflare.com/turnstile-privacy-policy/" rel="external">Turnstile Privacy Addendum</a> and <a href="https://www.cloudflare.com/cloudflare-customer-dpa/" rel="external">Cloudflare Data Processing Addendum</a>.</p>
+          </div>
+        </section>
+
+        <section class="legal-section">
+          <h2>6. Device storage</h2>
+          <div>
+            <p>We use only storage required to provide the room you request:</p>
+            <div class="legal-table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Item</th><th>Purpose</th><th>Lifetime</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>wsd_session_&lt;room&gt;</code></td><td>HTTP-only room authentication cookie</td><td>24 hours</td></tr>
+                  <tr><td><code>wsd-invite:&lt;room&gt;</code></td><td>Keeps the private invite in the current browser session</td><td>Until the tab/browser session closes</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>No advertising or audience-measurement cookies are used. These items are strictly necessary to provide the room functionality you requested, so consent is not required under section 25(2)(2) TDDDG. Turnstile storage is described separately above.</p>
+          </div>
+        </section>
+
+        <section class="legal-section">
+          <h2>7. Recipients and security</h2>
+          <div>
+            <p>Data are received only by intended room participants, the controller, service providers needed for hosting and secure delivery, and Cloudflare for Turnstile. Processors are bound under Article 28 GDPR where required. We do not sell personal data and do not use it for advertising.</p>
+            <p>We use HTTPS in production, HTTP-only and SameSite cookies, hashed authentication tokens, access controls, short retention periods, and database deletion safeguards. No internet service can guarantee absolute security.</p>
+          </div>
+        </section>
+
+        <section class="legal-section">
+          <h2>8. Your rights</h2>
+          <div>
+            <p>Subject to the statutory conditions, you may request access, rectification, erasure, restriction, and data portability. You may object at any time to processing based on Article 6(1)(f) GDPR for reasons arising from your particular situation.</p>
+            <p>To exercise a right, email <a href="{{LEGAL_EMAIL_URL}}">{{LEGAL_EMAIL}}</a>. Because there are no accounts and rooms are short-lived, include the room identifier and your display name; we may need additional information to verify that the request concerns you.</p>
+            <p>You also have the right to lodge a complaint with a data protection supervisory authority, particularly in the EU member state of your habitual residence, place of work, or the alleged infringement.</p>
+          </div>
+        </section>
+
+        <section class="legal-section">
+          <h2>9. Required data and automated decisions</h2>
+          <div>
+            <p>Providing a display name is required to join a room. Supplying selected prompts and voting are optional, although a game needs at least one prompt. Without the technically required connection and session data, the requested room cannot operate.</p>
+            <p>We do not make decisions that produce legal or similarly significant effects. Turnstile automatically assesses whether a request is likely automated; a failed check only prevents that room-creation or join request.</p>
+          </div>
+        </section>
+
+        <section class="legal-section">
+          <h2>10. Changes</h2>
+          <p>We may update this notice when the service, providers, or legal requirements change. The version published here applies when you use the service.</p>
+        </section>
+
+        <p class="legal-updated">Last updated: 13 August 2026</p>
+      </article>
+    </main>
+
+    <footer class="site-footer">
+      <p>Private by default · No accounts</p>
+      <nav aria-label="Legal">
+        <a href="/imprint">Imprint</a>
+        <a href="/privacy" aria-current="page">Privacy</a>
+      </nav>
+    </footer>
+  </body>
+</html>

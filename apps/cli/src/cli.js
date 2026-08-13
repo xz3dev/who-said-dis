@@ -1,4 +1,6 @@
+import { password } from "@inquirer/prompts";
 import { readFile } from "node:fs/promises";
+import { isIP } from "node:net";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import {
@@ -12,8 +14,9 @@ import {
   readCodexPrompts
 } from "./index.js";
 import { runInteractiveCli } from "./interactive.js";
+import { safeTerminalText } from "./terminal.js";
 
-const packagePath = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "package.json");
+const packagePath = join(dirname(fileURLToPath(import.meta.url)), "..", "package.json");
 
 export async function runCli(args, io = console, dependencies = {}) {
   if (args.length === 0) {
@@ -40,8 +43,12 @@ export async function runCli(args, io = console, dependencies = {}) {
       io.log("No prompts imported.");
       return;
     }
-    const imported = await uploadPrompts(options.room, options.token, result.selections, dependencies.fetchImpl || fetch);
-    io.log(`\nImported ${imported.imported} prompt${imported.imported === 1 ? "" : "s"} for ${imported.name}.`);
+    const importToken = await (dependencies.tokenPrompt || password)({
+      message: "Paste the one-time import code:",
+      mask: "*"
+    });
+    const imported = await uploadPrompts(options.room, importToken, result.selections, dependencies.fetchImpl || fetch);
+    io.log(`\nImported ${imported.imported} prompt${imported.imported === 1 ? "" : "s"} for ${safeTerminalText(imported.name)}.`);
     return;
   }
 
@@ -53,7 +60,7 @@ export async function runCli(args, io = console, dependencies = {}) {
   const result = await readCodexPrompts(options);
 
   if (options.json) {
-    io.log(JSON.stringify(result.prompts, null, 2));
+    io.log(terminalSafeJson(result.prompts));
     return;
   }
 
@@ -106,10 +113,6 @@ function parseArgs(args) {
         if (!importing) throw new Error("--room is only available with the import command");
         options.room = requiredValue(args, ++index, argument);
         break;
-      case "--token":
-        if (!importing) throw new Error("--token is only available with the import command");
-        options.token = requiredValue(args, ++index, argument);
-        break;
       case "--scan":
         requireFunny(funny, argument);
         options.scan = requiredValue(args, ++index, argument);
@@ -144,7 +147,6 @@ function parseArgs(args) {
 
   if (importing && !options.help && !options.version) {
     if (!options.room) throw new Error("import requires --room");
-    if (!options.token) throw new Error("import requires --token");
   }
 
   return options;
@@ -163,9 +165,9 @@ function requiredValue(args, index, option) {
 }
 
 function formatPrompt(prompt, displayIndex) {
-  const origin = prompt.client === "unknown" ? prompt.surface : prompt.client;
-  const header = `${displayIndex}. ${prompt.timestamp || "unknown time"} · ${origin} · ${prompt.sessionId}`;
-  return `${header}\n${prompt.text}\n${prompt.citation}`;
+  const origin = safeTerminalText(prompt.client === "unknown" ? prompt.surface : prompt.client);
+  const header = `${displayIndex}. ${safeTerminalText(prompt.timestamp || "unknown time")} · ${origin} · ${safeTerminalText(prompt.sessionId)}`;
+  return `${header}\n${safeTerminalText(prompt.text)}\n${safeTerminalText(prompt.citation)}`;
 }
 
 function helpText() {
@@ -173,7 +175,7 @@ function helpText() {
 
 Usage:
   who-said-dis                 Start the interactive wizard
-  who-said-dis import --room <url> --token <token>
+  who-said-dis import --room <url>
   who-said-dis [list options]  Inspect normalized prompt records
   who-said-dis funny [options]
 
@@ -202,12 +204,21 @@ export async function uploadPrompts(roomUrl, token, prompts, fetchImpl = fetch) 
   } catch {
     throw new Error("--room must be a valid room URL");
   }
-  const match = url.pathname.match(/^\/room\/([A-Za-z0-9_-]+)\/?$/);
-  if (!match || !/^https?:$/.test(url.protocol)) throw new Error("--room must be a valid room URL");
-  if (typeof token !== "string" || !/^[A-Za-z0-9_-]{20,100}$/.test(token)) throw new Error("--token is invalid");
+  const match = url.pathname.match(/^\/room\/([A-Za-z0-9_-]{12})\/?$/);
+  if (!match || !/^https?:$/.test(url.protocol) || url.username || url.password || url.search || url.hash) {
+    throw new Error("--room must be a valid room URL");
+  }
+  if (url.protocol !== "https:" && !isLoopbackHostname(url.hostname)) {
+    throw new Error("--room must use HTTPS unless it points to localhost");
+  }
+  if (typeof token !== "string" || !/^[A-Za-z0-9_-]{20,100}$/.test(token)) {
+    throw new Error("The import code is invalid");
+  }
 
   const response = await fetchImpl(`${url.origin}/api/rooms/${match[1]}/prompts`, {
     method: "POST",
+    redirect: "error",
+    signal: AbortSignal.timeout(30_000),
     headers: {
       authorization: `Bearer ${token}`,
       "content-type": "application/json"
@@ -239,10 +250,8 @@ async function runFunnyCommand(options, io) {
 
   if (options.json) {
     io.log(
-      JSON.stringify(
-        results.map(({ rank, score, prompt }) => ({ rank, score, text: prompt.text })),
-        null,
-        2
+      terminalSafeJson(
+        results.map(({ rank, score, prompt }) => ({ rank, score, text: prompt.text }))
       )
     );
     return;
@@ -251,9 +260,24 @@ async function runFunnyCommand(options, io) {
   io.log(
     results
       .map(
-        (result) => `${result.rank}. ${result.score}/100\n${result.prompt.text}`
+        (result) => `${result.rank}. ${result.score}/100\n${safeTerminalText(result.prompt.text)}`
       )
       .join("\n\n")
+  );
+}
+
+function isLoopbackHostname(hostname) {
+  const normalized = hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  if (normalized === "localhost" || normalized.endsWith(".localhost")) return true;
+  const version = isIP(normalized);
+  if (version === 4) return normalized.startsWith("127.");
+  return version === 6 && normalized === "::1";
+}
+
+function terminalSafeJson(value) {
+  return JSON.stringify(value, null, 2).replace(
+    /[\u007F-\u009F\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/g,
+    (character) => `\\u${character.codePointAt(0).toString(16).padStart(4, "0")}`
   );
 }
 

@@ -50,6 +50,20 @@ export class RoomEventHub {
     return this.rooms.get(roomId)?.size || 0;
   }
 
+  expireRoom(roomId) {
+    const subscribers = this.rooms.get(roomId);
+    if (!subscribers) return;
+    this.rooms.delete(roomId);
+    for (const { socket } of subscribers) socket.close(1008, "room_expired");
+  }
+
+  pruneInvalidRooms() {
+    for (const [roomId, subscribers] of this.rooms) {
+      const firstSubscriber = subscribers.values().next().value;
+      if (firstSubscriber && !firstSubscriber.getState()) this.expireRoom(roomId);
+    }
+  }
+
   close() {
     this.closing = true;
     clearInterval(this.keepAlive);
@@ -62,6 +76,10 @@ export class RoomEventHub {
   sendState(subscriber, presentParticipantIds) {
     const state = subscriber.getState();
     if (!state || subscriber.socket.readyState !== WebSocket.OPEN) return;
+    if (subscriber.socket.bufferedAmount > 1_000_000) {
+      subscriber.socket.close(1008, "slow_client");
+      return;
+    }
     const room = {
       ...state,
       participants: state.participants.filter((participant) => presentParticipantIds.has(participant.id))

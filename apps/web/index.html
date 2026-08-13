@@ -72,9 +72,12 @@
             <section class="panel cli-panel">
               <span class="panel-number">02</span>
               <h2>Add your prompts</h2>
-              <p>This command imports your selected prompts as your current room name.</p>
+              <p>Run the command, then paste the short-lived code when the CLI asks for it.</p>
               <code id="cli-command">Preparing your private command…</code>
               <button id="copy-cli" class="button secondary wide" type="button" disabled>Copy command</button>
+              <label for="cli-token">One-time import code</label>
+              <code id="cli-token" aria-label="One-time import code">Preparing code…</code>
+              <button id="copy-token" class="button secondary wide" type="button" disabled>Copy import code</button>
               <p id="cli-status" class="muted" aria-live="polite"></p>
             </section>
 
@@ -126,6 +129,12 @@
         <a class="button primary" href="/">Create a room</a>
       </section>
     </main>
-    <footer>Private by default · No accounts · Built for delightfully questionable prompts</footer>
+    <footer class="site-footer">
+      <p>Private by default · No accounts · Built for delightfully questionable prompts</p>
+      <nav aria-label="Legal">
+        <a href="/imprint">Imprint</a>
+        <a href="/privacy">Privacy</a>
+      </nav>
+    </footer>
   </body>
 </html>

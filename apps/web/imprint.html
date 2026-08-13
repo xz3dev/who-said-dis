@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Legal notice and provider information for who said dis?" />
+    <title>Imprint · who said dis?</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="brand" aria-label="who said dis home">
+        <a href="/">who said dis<span>?</span></a>
+      </header>
+
+      <article class="legal-page">
+        <div class="eyebrow">Legal notice</div>
+        <h1>Imprint</h1>
+        <p class="legal-intro">Provider identification pursuant to section 5 of the German Digital Services Act (DDG).</p>
+
+        <section class="legal-section">
+          <h2>Service provider</h2>
+          <div>
+            <address>
+              <strong>{{LEGAL_NAME}}</strong><br />
+              {{LEGAL_ADDRESS}}
+            </address>
+            {{LEGAL_REPRESENTATIVE_BLOCK}}
+          </div>
+        </section>
+
+        <section class="legal-section">
+          <h2>Contact</h2>
+          <p>Email: <a href="{{LEGAL_EMAIL_URL}}">{{LEGAL_EMAIL}}</a></p>
+        </section>
+
+        {{LEGAL_REGISTER_BLOCK}}
+
+        <section class="legal-section">
+          <h2>Legal basis</h2>
+          <p>The provider information on this page is supplied under <a href="https://www.gesetze-im-internet.de/ddg/__5.html" rel="external">section 5 DDG</a>.</p>
+        </section>
+
+        <p class="legal-updated">Last updated: 13 August 2026</p>
+      </article>
+    </main>
+
+    <footer class="site-footer">
+      <p>Private by default · No accounts</p>
+      <nav aria-label="Legal">
+        <a href="/imprint" aria-current="page">Imprint</a>
+        <a href="/privacy">Privacy</a>
+      </nav>
+    </footer>
+  </body>
+</html>

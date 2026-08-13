@@ -8,11 +8,27 @@ services:
       DATABASE_PATH: /data/who-said-dis.sqlite
       PORT: 3000
       SECURE_COOKIES: "1"
-      TRUST_PROXY: "1"
+      TRUST_PROXY: ${TRUST_PROXY:-0}
+      TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-}
+      LEGAL_NAME: ${LEGAL_NAME:-}
+      LEGAL_ADDRESS: ${LEGAL_ADDRESS:-}
+      LEGAL_EMAIL: ${LEGAL_EMAIL:-}
+      LEGAL_REPRESENTATIVE: ${LEGAL_REPRESENTATIVE:-}
+      LEGAL_REGISTER: ${LEGAL_REGISTER:-}
+      LEGAL_REGISTRATION_NUMBER: ${LEGAL_REGISTRATION_NUMBER:-}
     ports:
-      - "3000:3000"
+      - "${BIND_ADDRESS:-127.0.0.1}:3000:3000"
     volumes:
       - who-said-dis-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 100
+    mem_limit: 512m
 
 volumes:
   who-said-dis-data:

@@ -1,9 +1,14 @@
 import { createHash } from "node:crypto";
-import { createReadStream } from "node:fs";
-import { access, opendir } from "node:fs/promises";
+import { access } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, join, resolve } from "node:path";
-import { createInterface } from "node:readline";
+import {
+  MAX_PROMPT_SCAN,
+  findJsonlFiles,
+  nextBoundedOrdinal,
+  readBoundedLines,
+  trimRecent
+} from "./history-files.js";
 
 export function resolveClaudeHome(explicitHome) {
   return resolve(explicitHome || process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude"));
@@ -18,7 +23,9 @@ export async function readClaudePrompts(options = {}) {
   const hasHistory = await isReadable(historyPath);
   const transcriptFiles = explicitHistoryPath
     ? []
-    : await findTranscriptFiles(join(claudeHome, "projects"));
+    : await findJsonlFiles(join(claudeHome, "projects"), {
+        skipDirectory: (name) => name === "subagents"
+      });
 
   if (!hasHistory && transcriptFiles.length === 0) {
     const error = new Error(
@@ -30,18 +37,23 @@ export async function readClaudePrompts(options = {}) {
   }
 
   const diagnostics = { invalidLines: 0, ignoredLines: 0, unreadableFiles: 0 };
-  const historyPrompts = hasHistory ? await readHistoryFile(historyPath, diagnostics) : [];
+  const historyPrompts = hasHistory ? await readHistoryFile(historyPath, diagnostics, limit) : [];
   const prompts = [...historyPrompts];
   const fingerprints = new Set(historyPrompts.map(promptFingerprint));
 
   for (const transcriptPath of transcriptFiles) {
     try {
-      const transcriptPrompts = await readTranscriptFile(transcriptPath, diagnostics);
+      const transcriptPrompts = await readTranscriptFile(transcriptPath, diagnostics, limit);
       for (const prompt of transcriptPrompts) {
         const fingerprint = promptFingerprint(prompt);
         if (fingerprints.has(fingerprint)) continue;
         fingerprints.add(fingerprint);
         prompts.push(prompt);
+        if (prompts.length > limit * 2) {
+          trimRecent(prompts, limit, comparePromptTimestamps);
+          fingerprints.clear();
+          for (const retained of prompts) fingerprints.add(promptFingerprint(retained));
+        }
       }
     } catch {
       diagnostics.unreadableFiles += 1;
@@ -58,13 +70,17 @@ export async function readClaudePrompts(options = {}) {
   };
 }
 
-async function readHistoryFile(path, diagnostics) {
+async function readHistoryFile(path, diagnostics, limit) {
   const prompts = [];
   const sessionOrdinals = new Map();
   let lineNumber = 0;
 
-  for await (const line of readLines(path)) {
+  for await (const line of readBoundedLines(path)) {
     lineNumber += 1;
+    if (line === null) {
+      diagnostics.invalidLines += 1;
+      continue;
+    }
     if (!line.trim()) continue;
 
     let record;
@@ -81,8 +97,7 @@ async function readHistoryFile(path, diagnostics) {
     }
 
     const sessionId = record.sessionId || "unknown";
-    const ordinal = (sessionOrdinals.get(sessionId) || 0) + 1;
-    sessionOrdinals.set(sessionId, ordinal);
+    const ordinal = nextBoundedOrdinal(sessionOrdinals, sessionId, lineNumber);
     prompts.push(
       createClaudePrompt({
         text: record.display,
@@ -95,19 +110,24 @@ async function readHistoryFile(path, diagnostics) {
         line: lineNumber
       })
     );
+    trimRecent(prompts, limit);
   }
 
-  return prompts;
+  return prompts.slice(-limit);
 }
 
-async function readTranscriptFile(path, diagnostics) {
+async function readTranscriptFile(path, diagnostics, limit) {
   const prompts = [];
   const fallbackSessionId = basename(path, ".jsonl") || "unknown";
   let ordinal = 0;
   let lineNumber = 0;
 
-  for await (const line of readLines(path)) {
+  for await (const line of readBoundedLines(path)) {
     lineNumber += 1;
+    if (line === null) {
+      diagnostics.invalidLines += 1;
+      continue;
+    }
     if (!line.trim()) continue;
 
     let record;
@@ -136,9 +156,10 @@ async function readTranscriptFile(path, diagnostics) {
         line: lineNumber
       })
     );
+    trimRecent(prompts, limit);
   }
 
-  return prompts;
+  return prompts.slice(-limit);
 }
 
 function createClaudePrompt(input) {
@@ -209,36 +230,16 @@ function timestampValue(timestamp) {
   return Number.isNaN(value) ? 0 : value;
 }
 
+function comparePromptTimestamps(left, right) {
+  return timestampValue(left.timestamp) - timestampValue(right.timestamp);
+}
+
 function parseLimit(value) {
   const number = typeof value === "number" ? value : Number(value);
-  if (!Number.isSafeInteger(number) || number < 1) {
-    throw new TypeError("limit must be a positive integer");
+  if (!Number.isSafeInteger(number) || number < 1 || number > MAX_PROMPT_SCAN) {
+    throw new TypeError(`limit must be an integer between 1 and ${MAX_PROMPT_SCAN}`);
   }
   return number;
-}
-
-async function* readLines(path) {
-  const input = createReadStream(path, { encoding: "utf8" });
-  const lines = createInterface({ input, crlfDelay: Infinity });
-  yield* lines;
-}
-
-async function findTranscriptFiles(root) {
-  const files = [];
-  let directory;
-  try {
-    directory = await opendir(root);
-  } catch {
-    return files;
-  }
-
-  for await (const entry of directory) {
-    if (entry.name === "subagents") continue;
-    const path = join(root, entry.name);
-    if (entry.isDirectory()) files.push(...(await findTranscriptFiles(path)));
-    else if (entry.isFile() && entry.name.endsWith(".jsonl")) files.push(path);
-  }
-  return files;
 }
 
 async function isReadable(path) {

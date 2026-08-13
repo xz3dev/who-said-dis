@@ -1,0 +1,51 @@
+{
+  "name": "@xz3dev/who-said-dis",
+  "version": "0.4.1",
+  "description": "The local prompt-import client for the game at who-said-dis.com.",
+  "type": "module",
+  "bin": {
+    "who-said-dis": "./bin/who-said-dis.js"
+  },
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "prepublishOnly": "npm test --prefix ../.."
+  },
+  "keywords": [
+    "who-said-dis",
+    "game",
+    "codex",
+    "claude",
+    "llm",
+    "prompts",
+    "history",
+    "cli"
+  ],
+  "homepage": "https://who-said-dis.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xz3dev/who-said-dis.git",
+    "directory": "apps/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/xz3dev/who-said-dis/issues"
+  },
+  "author": "xz3dev",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "7.10.1"
+  }
+}

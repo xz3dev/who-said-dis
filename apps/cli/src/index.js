@@ -1,9 +1,14 @@
 import { createHash } from "node:crypto";
-import { createReadStream } from "node:fs";
-import { access, opendir } from "node:fs/promises";
+import { access } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, join, resolve } from "node:path";
-import { createInterface } from "node:readline";
+import {
+  MAX_PROMPT_SCAN,
+  findJsonlFiles,
+  nextBoundedOrdinal,
+  readBoundedLines,
+  trimRecent
+} from "./history-files.js";
 
 export const DEFAULT_LIMIT = 100;
 
@@ -46,7 +51,7 @@ export async function readCodexPrompts(options = {}) {
   if (options.historyPath) {
     const historyPath = resolve(options.historyPath);
     await assertReadable(historyPath, "Codex history");
-    const history = await readHistoryFile(historyPath);
+    const history = await readHistoryFile(historyPath, limit);
     return makeResult(codexHome, [historyPath], history.prompts, history.diagnostics, limit);
   }
 
@@ -66,8 +71,9 @@ export async function readCodexPrompts(options = {}) {
 
   for (const file of sessionFiles) {
     try {
-      const parsed = await readSessionFile(file);
+      const parsed = await readSessionFile(file, limit);
       sessionPrompts.push(...parsed.prompts);
+      trimRecent(sessionPrompts, limit, comparePromptTimestamps);
       mergeDiagnostics(diagnostics, parsed.diagnostics);
     } catch {
       diagnostics.unreadableFiles += 1;
@@ -80,7 +86,7 @@ export async function readCodexPrompts(options = {}) {
   const sessionFingerprints = new Set(sessionPrompts.map(promptFingerprint));
 
   if (hasHistory) {
-    const history = await readHistoryFile(historyPath);
+    const history = await readHistoryFile(historyPath, limit);
     mergeDiagnostics(diagnostics, history.diagnostics);
     for (const prompt of history.prompts) {
       if (!sessionFingerprints.has(promptFingerprint(prompt))) prompts.push(prompt);
@@ -91,15 +97,20 @@ export async function readCodexPrompts(options = {}) {
   return makeResult(codexHome, files, prompts, diagnostics, limit);
 }
 
-async function readSessionFile(path) {
+async function readSessionFile(path, limit) {
   const records = [];
   let metadata = null;
   let invalidLines = 0;
   let ignoredLines = 0;
   let lineNumber = 0;
+  let promptOrdinal = 0;
 
-  for await (const line of readLines(path)) {
+  for await (const line of readBoundedLines(path)) {
     lineNumber += 1;
+    if (line === null) {
+      invalidLines += 1;
+      continue;
+    }
     if (!line.trim()) continue;
 
     let record;
@@ -121,11 +132,14 @@ async function readSessionFile(path) {
       typeof record.payload.message === "string" &&
       record.payload.message.trim().length > 0
     ) {
+      promptOrdinal += 1;
       records.push({
+        ordinal: promptOrdinal,
         text: record.payload.message,
         timestamp: record.timestamp,
         line: lineNumber
       });
+      trimRecent(records, limit);
     } else {
       ignoredLines += 1;
     }
@@ -140,10 +154,10 @@ async function readSessionFile(path) {
   const surface = stringValue(metadata?.source) || "unknown";
 
   return {
-    prompts: records.map((record, index) =>
+    prompts: records.slice(-limit).map((record, index) =>
       createPrompt({
         sessionId,
-        ordinal: index + 1,
+        ordinal: record.ordinal,
         timestamp: record.timestamp,
         text: record.text,
         client,
@@ -157,15 +171,19 @@ async function readSessionFile(path) {
   };
 }
 
-async function readHistoryFile(path) {
+async function readHistoryFile(path, limit) {
   const prompts = [];
   const sessionOrdinals = new Map();
   let invalidLines = 0;
   let ignoredLines = 0;
   let lineNumber = 0;
 
-  for await (const line of readLines(path)) {
+  for await (const line of readBoundedLines(path)) {
     lineNumber += 1;
+    if (line === null) {
+      invalidLines += 1;
+      continue;
+    }
     if (!line.trim()) continue;
 
     let record;
@@ -181,8 +199,7 @@ async function readHistoryFile(path) {
       continue;
     }
 
-    const ordinal = (sessionOrdinals.get(record.session_id) || 0) + 1;
-    sessionOrdinals.set(record.session_id, ordinal);
+    const ordinal = nextBoundedOrdinal(sessionOrdinals, record.session_id, lineNumber);
     prompts.push(
       createPrompt({
         sessionId: record.session_id,
@@ -196,9 +213,10 @@ async function readHistoryFile(path) {
         sourceKind: "history"
       })
     );
+    trimRecent(prompts, limit);
   }
 
-  return { prompts, diagnostics: { invalidLines, ignoredLines, unreadableFiles: 0 } };
+  return { prompts: prompts.slice(-limit), diagnostics: { invalidLines, ignoredLines, unreadableFiles: 0 } };
 }
 
 function createPrompt(input) {
@@ -232,33 +250,10 @@ function makeResult(codexHome, files, prompts, diagnostics, limit) {
   };
 }
 
-async function* readLines(path) {
-  const input = createReadStream(path, { encoding: "utf8" });
-  const lines = createInterface({ input, crlfDelay: Infinity });
-  yield* lines;
-}
-
-async function findJsonlFiles(root) {
-  const files = [];
-  let directory;
-  try {
-    directory = await opendir(root);
-  } catch {
-    return files;
-  }
-
-  for await (const entry of directory) {
-    const path = join(root, entry.name);
-    if (entry.isDirectory()) files.push(...(await findJsonlFiles(path)));
-    else if (entry.isFile() && entry.name.endsWith(".jsonl")) files.push(path);
-  }
-  return files;
-}
-
 function parseLimit(value) {
   const number = typeof value === "number" ? value : Number(value);
-  if (!Number.isSafeInteger(number) || number < 1) {
-    throw new TypeError("limit must be a positive integer");
+  if (!Number.isSafeInteger(number) || number < 1 || number > MAX_PROMPT_SCAN) {
+    throw new TypeError(`limit must be an integer between 1 and ${MAX_PROMPT_SCAN}`);
   }
   return number;
 }
@@ -298,6 +293,10 @@ function promptFingerprint(prompt) {
 function timestampValue(timestamp) {
   const value = timestamp ? Date.parse(timestamp) : NaN;
   return Number.isNaN(value) ? 0 : value;
+}
+
+function comparePromptTimestamps(left, right) {
+  return timestampValue(left.timestamp) - timestampValue(right.timestamp);
 }
 
 function sessionIdFromFilename(path) {

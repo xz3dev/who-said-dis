@@ -1,9 +1,10 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { mkdirSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import {
   MAX_ANSWER_OPTIONS,
+  IMPORT_TOKEN_TTL_MS,
   MAX_PROMPT_LENGTH,
   MAX_PROMPTS_PER_IMPORT,
   MAX_ROOM_PARTICIPANTS,
@@ -12,8 +13,12 @@ import {
 
 export function openDatabase(path) {
   if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
+  const isNewDatabase = path !== ":memory:" && !existsSync(path);
   const database = new DatabaseSync(path);
+  if (path !== ":memory:") chmodSync(path, 0o600);
   database.exec("PRAGMA foreign_keys = ON");
+  database.exec("PRAGMA secure_delete = ON");
+  if (isNewDatabase) database.exec("PRAGMA auto_vacuum = INCREMENTAL");
   database.exec("PRAGMA journal_mode = WAL");
   database.exec(`
     CREATE TABLE IF NOT EXISTS rooms (
@@ -80,6 +85,12 @@ export function openDatabase(path) {
   ensureColumn(database, "rooms", "vote_started_at", "INTEGER");
   ensureColumn(database, "prompts", "played_round", "INTEGER");
   ensureColumn(database, "votes", "points", "INTEGER CHECK (points BETWEEN 0 AND 200)");
+  database.exec(`
+    DELETE FROM import_tokens
+    WHERE id NOT IN (SELECT MAX(id) FROM import_tokens GROUP BY participant_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_import_tokens_unique_participant
+      ON import_tokens(participant_id);
+  `);
   database.exec("PRAGMA optimize");
   return database;
 }
@@ -169,10 +180,20 @@ export function issueImportToken(database, publicId, sessionToken, now = Date.no
   const participant = participantForSession(database, publicId, sessionToken);
   if (!participant) return { error: "UNAUTHORIZED" };
   const token = randomToken(32);
-  const expiresAt = database.prepare("SELECT expires_at FROM rooms WHERE id = ?").get(participant.room_id).expires_at;
-  database.prepare("INSERT INTO import_tokens (participant_id, token_hash, expires_at) VALUES (?, ?, ?)")
-    .run(participant.id, hashToken(token), expiresAt);
-  return { token, participantId: participant.id, name: participant.name };
+  const roomExpiresAt = database.prepare("SELECT expires_at FROM rooms WHERE id = ?").get(participant.room_id).expires_at;
+  const expiresAt = Math.min(roomExpiresAt, now + IMPORT_TOKEN_TTL_MS);
+  database.prepare(
+    `INSERT INTO import_tokens (participant_id, token_hash, expires_at) VALUES (?, ?, ?)
+     ON CONFLICT(participant_id) DO UPDATE SET
+       token_hash = excluded.token_hash,
+       expires_at = excluded.expires_at`
+  ).run(participant.id, hashToken(token), expiresAt);
+  return {
+    token,
+    expiresAt: new Date(expiresAt).toISOString(),
+    participantId: participant.id,
+    name: participant.name
+  };
 }
 
 export function importPrompts(database, publicId, importToken, values, now = Date.now()) {
@@ -186,6 +207,7 @@ export function importPrompts(database, publicId, importToken, values, now = Dat
   if (!participant) return { error: "UNAUTHORIZED" };
 
   transaction(database, () => {
+    database.prepare("DELETE FROM import_tokens WHERE id = ?").run(participant.import_token_id);
     database.prepare("DELETE FROM prompts WHERE participant_id = ? AND used = 0").run(participant.id);
     const insert = database.prepare(
       "INSERT OR IGNORE INTO prompts (room_id, participant_id, text, citation, used, created_at) VALUES (?, ?, ?, ?, 0, ?)"
@@ -277,8 +299,16 @@ export function listVotingRounds(database) {
 }
 
 export function cleanupExpiredRooms(database, now = Date.now()) {
+  const expiredRooms = database.prepare("SELECT public_id FROM rooms WHERE expires_at <= ?").all(now);
   database.prepare("DELETE FROM import_tokens WHERE expires_at <= ?").run(now);
   database.prepare("DELETE FROM rooms WHERE expires_at <= ?").run(now);
+  if (expiredRooms.length > 0) {
+    database.prepare("PRAGMA wal_checkpoint(TRUNCATE)").get();
+    if (Number(database.prepare("PRAGMA auto_vacuum").get().auto_vacuum) === 2) {
+      database.exec("PRAGMA incremental_vacuum");
+    }
+  }
+  return expiredRooms.map((room) => room.public_id);
 }
 
 export function hashToken(token) {
@@ -308,7 +338,7 @@ function participantForSession(database, publicId, token) {
 function participantForImportToken(database, publicId, token, now) {
   if (typeof token !== "string" || token.length < 20 || token.length > 100) return null;
   return database.prepare(
-    `SELECT p.id, p.name, p.room_id FROM import_tokens t
+    `SELECT p.id, p.name, p.room_id, t.id AS import_token_id FROM import_tokens t
      JOIN participants p ON p.id = t.participant_id
      JOIN rooms r ON r.id = p.room_id
      WHERE r.public_id = ? AND t.token_hash = ? AND t.expires_at > ?`

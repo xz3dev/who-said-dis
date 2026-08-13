@@ -1,18 +1,9 @@
 {
-  "name": "@xz3dev/who-said-dis",
-  "version": "0.4.0",
-  "description": "Interactively discover local LLM clients and analyze their prompt history.",
+  "name": "who-said-dis",
+  "private": true,
   "type": "module",
-  "bin": {
-    "who-said-dis": "./apps/cli/bin/who-said-dis.js"
-  },
-  "exports": {
-    ".": "./apps/cli/src/index.js"
-  },
-  "files": [
-    "apps/cli",
-    "README.md",
-    "LICENSE"
+  "workspaces": [
+    "apps/cli"
   ],
   "scripts": {
     "test": "node --test",
@@ -20,27 +11,11 @@
     "server": "node --env-file-if-exists=.env ./apps/server/src/index.js",
     "dev": "node --env-file-if-exists=.env --watch ./apps/server/src/index.js",
     "scenario:visual": "node ./apps/server/src/visual-scenario.js",
-    "prepublishOnly": "npm test"
-  },
-  "keywords": [
-    "codex",
-    "claude",
-    "llm",
-    "prompts",
-    "history",
-    "cli"
-  ],
-  "author": "xz3dev",
-  "license": "MIT",
-  "engines": {
-    "node": ">=18"
-  },
-  "publishConfig": {
-    "access": "public"
+    "pack:cli": "npm pack --workspace @xz3dev/who-said-dis --dry-run",
+    "publish:cli": "npm publish --workspace @xz3dev/who-said-dis"
   },
   "dependencies": {
-    "@inquirer/prompts": "^7.10.1",
-    "reconnecting-websocket": "^4.4.0",
-    "ws": "^8.21.3"
+    "reconnecting-websocket": "4.4.0",
+    "ws": "8.21.3"
   }
 }

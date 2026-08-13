@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
-import { homedir } from "node:os";
+import { mkdtemp, rm } from "node:fs/promises";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { readClaudePrompts, resolveClaudeHome } from "../claude.js";
 import {
@@ -58,25 +59,34 @@ export async function scanClaudeInstallations(options = {}) {
 }
 
 export async function runClaudeFunnyJudge(candidates, options) {
-  const schema = buildFunnyResultSchema(options.top);
-  const args = buildClaudeJudgeArgs(schema, options);
-  const input = buildJudgePrompt(candidates, options.top);
-  const output = await spawnClaude(options.claudeBinary, args, input);
-
-  let response;
+  const temporaryDirectory = await mkdtemp(join(tmpdir(), "who-said-dis-claude-"));
   try {
-    response = JSON.parse(output);
-  } catch {
-    throw new Error("Claude returned invalid JSON for the funny ranking");
+    const schema = buildFunnyResultSchema(options.top);
+    const args = buildClaudeJudgeArgs(schema, options);
+    const input = buildJudgePrompt(candidates, options.top);
+    const output = await spawnClaude(options.claudeBinary, args, input, temporaryDirectory);
+
+    let response;
+    try {
+      response = JSON.parse(output);
+    } catch {
+      throw new Error("Claude returned invalid JSON for the funny ranking");
+    }
+    const result = response?.structured_output || response;
+    if (!Array.isArray(result?.results)) throw new Error("Claude returned an invalid funny ranking");
+    return result.results;
+  } finally {
+    await rm(temporaryDirectory, { recursive: true, force: true });
   }
-  const result = response?.structured_output || response;
-  if (!Array.isArray(result?.results)) throw new Error("Claude returned an invalid funny ranking");
-  return result.results;
 }
 
 export function buildClaudeJudgeArgs(schema, options = {}) {
   return [
     "--print",
+    "--safe-mode",
+    "--strict-mcp-config",
+    "--disable-slash-commands",
+    "--no-chrome",
     "--model",
     options.model || "haiku",
     "--effort",
@@ -91,9 +101,10 @@ export function buildClaudeJudgeArgs(schema, options = {}) {
   ];
 }
 
-function spawnClaude(binary, args, input) {
+function spawnClaude(binary, args, input, cwd) {
   return new Promise((resolve, reject) => {
     const child = spawn(binary, args, {
+      cwd,
       stdio: ["pipe", "pipe", "pipe"]
     });
     let stdout = "";

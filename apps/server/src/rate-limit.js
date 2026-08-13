@@ -1,14 +1,25 @@
-export function createRateLimiter() {
+export function createRateLimiter(options = {}) {
   const buckets = new Map();
+  const maxKeys = options.maxKeys || 10_000;
+  const sweepIntervalMs = options.sweepIntervalMs || 60_000;
+  let nextSweepAt = 0;
+
   return function allow(key, limit, windowMs, now = Date.now()) {
-    const cutoff = now - windowMs;
-    const recent = (buckets.get(key) || []).filter((timestamp) => timestamp > cutoff);
-    if (recent.length >= limit) {
-      buckets.set(key, recent);
-      return false;
+    if (now >= nextSweepAt) {
+      for (const [bucketKey, bucket] of buckets) {
+        if (bucket.expiresAt <= now) buckets.delete(bucketKey);
+      }
+      nextSweepAt = now + sweepIntervalMs;
     }
-    recent.push(now);
-    buckets.set(key, recent);
+
+    let bucket = buckets.get(key);
+    if (!bucket || bucket.expiresAt <= now) {
+      if (!bucket && buckets.size >= maxKeys) return false;
+      bucket = { count: 0, expiresAt: now + windowMs };
+      buckets.set(key, bucket);
+    }
+    if (bucket.count >= limit) return false;
+    bucket.count += 1;
     return true;
   };
 }

@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm, stat } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import WebSocket from "ws";
 import { createApp } from "../apps/server/src/app.js";
@@ -6,6 +9,7 @@ import { readConfig } from "../apps/server/src/config.js";
 import {
   calculateVotePoints,
   castVote,
+  cleanupExpiredRooms,
   createRoom,
   getRoomForSession,
   importPrompts,
@@ -14,6 +18,7 @@ import {
   openDatabase,
   startNextRound
 } from "../apps/server/src/database.js";
+import { createRateLimiter } from "../apps/server/src/rate-limit.js";
 import { RoomEventHub } from "../apps/server/src/room-events.js";
 import { verifyTurnstile } from "../apps/server/src/turnstile.js";
 
@@ -21,18 +26,101 @@ test("advertises the local or published CLI command for the current environment"
   const development = readConfig({ TURNSTILE_BYPASS: "1" });
   const production = readConfig({
     NODE_ENV: "production",
+    PUBLIC_URL: "https://who-said-dis.com",
     TURNSTILE_SITE_KEY: "site-key",
-    TURNSTILE_SECRET: "secret"
+    TURNSTILE_SECRET: "secret",
+    LEGAL_NAME: "Example Operator",
+    LEGAL_ADDRESS: "Example Street 1, 10115 Berlin, Germany",
+    LEGAL_EMAIL: "legal@example.com"
   });
   const overridden = readConfig({ TURNSTILE_BYPASS: "1", CLI_COMMAND: "custom-cli --dev" });
   const timed = readConfig({ TURNSTILE_BYPASS: "1", VOTE_TIMEOUT_SECONDS: "12" });
 
   assert.equal(development.cliCommand, "npm run cli --");
-  assert.equal(production.cliCommand, "npx @xz3dev/who-said-dis");
+  assert.equal(production.cliCommand, "npx --yes @xz3dev/who-said-dis@0.4.1");
+  assert.equal(production.legal.email, "legal@example.com");
   assert.equal(overridden.cliCommand, "custom-cli --dev");
   assert.equal(development.voteTimeoutSeconds, 45);
   assert.equal(timed.voteTimeoutSeconds, 12);
   assert.throws(() => readConfig({ TURNSTILE_BYPASS: "1", VOTE_TIMEOUT_SECONDS: "0" }), /VOTE_TIMEOUT_SECONDS/);
+  assert.throws(() => readConfig({
+    NODE_ENV: "production",
+    PUBLIC_URL: "https://who-said-dis.com",
+    TURNSTILE_BYPASS: "1",
+    LEGAL_NAME: "Example Operator",
+    LEGAL_ADDRESS: "Example Street 1, Berlin",
+    LEGAL_EMAIL: "legal@example.com"
+  }), /TURNSTILE_BYPASS/);
+  assert.throws(() => readConfig({
+    NODE_ENV: "production",
+    PUBLIC_URL: "http://who-said-dis.com",
+    TURNSTILE_SITE_KEY: "site-key",
+    TURNSTILE_SECRET: "secret",
+    LEGAL_NAME: "Example Operator",
+    LEGAL_ADDRESS: "Example Street 1, Berlin",
+    LEGAL_EMAIL: "legal@example.com"
+  }), /HTTPS/);
+  assert.throws(() => readConfig({
+    NODE_ENV: "production",
+    PUBLIC_URL: "https://who-said-dis.com",
+    SECURE_COOKIES: "0",
+    TURNSTILE_SITE_KEY: "site-key",
+    TURNSTILE_SECRET: "secret",
+    LEGAL_NAME: "Example Operator",
+    LEGAL_ADDRESS: "Example Street 1, Berlin",
+    LEGAL_EMAIL: "legal@example.com"
+  }), /SECURE_COOKIES/);
+  assert.throws(() => readConfig({ TURNSTILE_BYPASS: "1", TRUST_PROXY: "1" }), /TRUSTED_PROXY_IPS/);
+  assert.throws(() => readConfig({
+    NODE_ENV: "production",
+    PUBLIC_URL: "https://who-said-dis.com",
+    TURNSTILE_SITE_KEY: "site-key",
+    TURNSTILE_SECRET: "secret"
+  }), /LEGAL_NAME/);
+});
+
+test("rotates and consumes one-time import tokens", () => {
+  const database = openDatabase(":memory:");
+  const now = 1_700_000_000_000;
+  const room = createRoom(database, now);
+  const participant = joinRoom(database, room.publicId, room.joinToken, "Ada", now + 1);
+  const first = issueImportToken(database, room.publicId, participant.sessionToken, now + 2);
+  const second = issueImportToken(database, room.publicId, participant.sessionToken, now + 3);
+
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM import_tokens").get().count, 1);
+  assert.equal(importPrompts(database, room.publicId, first.token, [{ text: "old code" }], now + 4).error, "UNAUTHORIZED");
+  assert.equal(importPrompts(database, room.publicId, second.token, [{ text: "accepted" }], now + 5).imported, 1);
+  assert.equal(importPrompts(database, room.publicId, second.token, [{ text: "replay" }], now + 6).error, "UNAUTHORIZED");
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM import_tokens").get().count, 0);
+  assert.equal(Date.parse(second.expiresAt), now + 3 + 30 * 60 * 1000);
+  database.close();
+});
+
+test("uses secure deletion, restrictive database permissions, and active expiry cleanup", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "who-said-dis-database-"));
+  const path = join(directory, "rooms.sqlite");
+  const database = openDatabase(path);
+  context.after(async () => {
+    database.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+
+  assert.equal((await stat(path)).mode & 0o777, 0o600);
+  assert.equal(Number(database.prepare("PRAGMA secure_delete").get().secure_delete), 1);
+  assert.equal(Number(database.prepare("PRAGMA auto_vacuum").get().auto_vacuum), 2);
+
+  const now = 1_700_000_000_000;
+  const room = createRoom(database, now);
+  assert.deepEqual(cleanupExpiredRooms(database, now + 24 * 60 * 60 * 1000), [room.publicId]);
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM rooms").get().count, 0);
+});
+
+test("bounds rate-limiter key state and recovers after expiry", () => {
+  const allow = createRateLimiter({ maxKeys: 2, sweepIntervalMs: 10 });
+  assert.equal(allow("one", 1, 100, 1), true);
+  assert.equal(allow("two", 1, 100, 1), true);
+  assert.equal(allow("three", 1, 100, 1), false);
+  assert.equal(allow("three", 1, 100, 102), true);
 });
 
 test("imports prompts under a participant and runs voting through reveal and finish", () => {
@@ -134,7 +222,7 @@ test("Turnstile requires matching success, action, and hostname", async () => {
   assert.equal(await verifyTurnstile("token", "join_room", "127.0.0.1", config, fetchImpl), false);
 });
 
-test("HTTP flow creates an empty room and joins it through the returned URL", async () => {
+test("HTTP flow creates an empty room and joins it through the returned URL", async (context) => {
   const database = openDatabase(":memory:");
   const config = {
     publicUrl: "http://127.0.0.1",
@@ -146,6 +234,11 @@ test("HTTP flow creates an empty room and joins it through the returned URL", as
   };
   const server = createApp({ database, config });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  context.after(async () => {
+    server.roomEvents.close();
+    await new Promise((resolve) => server.close(resolve));
+    database.close();
+  });
   const base = `http://127.0.0.1:${server.address().port}`;
   config.publicUrl = base;
 
@@ -177,9 +270,9 @@ test("HTTP flow creates an empty room and joins it through the returned URL", as
     body: "{}"
   });
   assert.equal(importTokenResponse.status, 201);
-  const importCommand = (await importTokenResponse.json()).command;
-  assert.match(importCommand, new RegExp(`^npm run cli -- import --room ${base}/room/${created.roomId} --token `));
-  const importToken = importCommand.match(/--token ([A-Za-z0-9_-]+)$/)[1];
+  const importDetails = await importTokenResponse.json();
+  assert.equal(importDetails.command, `npm run cli -- import --room ${base}/room/${created.roomId}`);
+  const importToken = importDetails.token;
   const importedResponse = await fetch(`${base}/api/rooms/${created.roomId}/prompts`, {
     method: "POST",
     headers: { authorization: `Bearer ${importToken}`, "content-type": "application/json" },
@@ -191,9 +284,98 @@ test("HTTP flow creates an empty room and joins it through the returned URL", as
   const roomState = await roomResponse.json();
   assert.equal(roomState.you.name, "Grace");
   assert.equal(roomState.totalPrompts, 1);
+});
 
-  await new Promise((resolve) => server.close(resolve));
-  database.close();
+test("enforces JSON, same-origin writes, security headers, and trusted proxy chains", async (context) => {
+  const database = openDatabase(":memory:");
+  const config = {
+    publicUrl: "http://127.0.0.1",
+    cliCommand: "npm run cli --",
+    turnstileBypass: true,
+    turnstileSiteKey: "",
+    secureCookies: false,
+    trustProxy: true,
+    trustedProxyAddresses: ["127.0.0.1"]
+  };
+  const server = createApp({ database, config });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  context.after(async () => {
+    server.roomEvents.close();
+    await new Promise((resolve) => server.close(resolve));
+    database.close();
+  });
+  const base = `http://127.0.0.1:${server.address().port}`;
+  config.publicUrl = base;
+
+  const wrongType = await fetch(`${base}/api/rooms`, { method: "POST", body: "{}" });
+  assert.equal(wrongType.status, 415);
+  const crossOrigin = await fetch(`${base}/api/rooms`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://attacker.example" },
+    body: JSON.stringify({ turnstileToken: "development-bypass" })
+  });
+  assert.equal(crossOrigin.status, 403);
+
+  const statuses = [];
+  for (let index = 0; index < 6; index += 1) {
+    const response = await fetch(`${base}/api/rooms`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-forwarded-for": `198.51.100.${index + 1}, 192.0.2.44`
+      },
+      body: JSON.stringify({ turnstileToken: "development-bypass" })
+    });
+    statuses.push(response.status);
+  }
+  assert.deepEqual(statuses, [201, 201, 201, 201, 201, 429]);
+
+  const response = await fetch(`${base}/api/config`);
+  assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+  assert.equal(response.headers.get("cross-origin-resource-policy"), "same-origin");
+  assert.match(response.headers.get("content-security-policy"), /frame-ancestors 'none'/);
+});
+
+test("serves linked legal pages with escaped deployment contact details", async (context) => {
+  const database = openDatabase(":memory:");
+  const config = {
+    publicUrl: "http://127.0.0.1",
+    turnstileBypass: true,
+    turnstileSiteKey: "",
+    secureCookies: false,
+    trustProxy: false,
+    legal: {
+      name: "Example <Operator>",
+      address: "Example Street 1, 10115 Berlin, Germany",
+      email: "legal@example.com"
+    }
+  };
+  const server = createApp({ database, config });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  context.after(async () => {
+    server.roomEvents.close();
+    await new Promise((resolve) => server.close(resolve));
+    database.close();
+  });
+  const base = `http://127.0.0.1:${server.address().port}`;
+
+  const home = await (await fetch(base)).text();
+  assert.match(home, /href="\/imprint"/);
+  assert.match(home, /href="\/privacy"/);
+
+  const imprintResponse = await fetch(`${base}/imprint`);
+  assert.equal(imprintResponse.status, 200);
+  const imprint = await imprintResponse.text();
+  assert.match(imprint, /Example &lt;Operator&gt;/);
+  assert.doesNotMatch(imprint, /Example <Operator>/);
+  assert.match(imprint, /mailto:legal@example\.com/);
+
+  const privacyResponse = await fetch(`${base}/privacy`);
+  assert.equal(privacyResponse.status, 200);
+  const privacy = await privacyResponse.text();
+  assert.match(privacy, /Cloudflare Turnstile/);
+  assert.match(privacy, /deleted after 24 hours/);
+
 });
 
 test("WebSocket presence broadcasts joins and removes a client after its last socket closes", async (context) => {
@@ -261,6 +443,35 @@ test("WebSocket rejects room viewers without a participant session", async () =>
   database.close();
 });
 
+test("WebSocket closes clients that send application messages", async (context) => {
+  const database = openDatabase(":memory:");
+  const config = {
+    publicUrl: "http://127.0.0.1",
+    turnstileBypass: true,
+    turnstileSiteKey: "",
+    secureCookies: false,
+    trustProxy: false
+  };
+  const server = createApp({ database, config });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  context.after(async () => {
+    server.roomEvents.close();
+    await new Promise((resolve) => server.close(resolve));
+    database.close();
+  });
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const room = await createRoomOverHttp(base);
+  const participant = await joinRoomOverHttp(base, room, "Ada");
+  const socket = await openRoomSocket(base, room.roomId, participant.cookie);
+  await nextRoomState(socket);
+
+  const closed = new Promise((resolve) => socket.once("close", (code, reason) => {
+    resolve({ code, reason: reason.toString() });
+  }));
+  socket.send("unexpected client message");
+  assert.deepEqual(await closed, { code: 1008, reason: "read_only" });
+});
+
 test("WebSocket sends regular protocol pings", async () => {
   const database = openDatabase(":memory:");
   const config = {
@@ -319,8 +530,7 @@ test("server timer reveals an unfinished vote and broadcasts the result", async 
     headers: { cookie: participant.cookie, "content-type": "application/json" },
     body: "{}"
   });
-  const command = (await importResponse.json()).command;
-  const token = command.match(/--token ([A-Za-z0-9_-]+)$/)[1];
+  const token = (await importResponse.json()).token;
   await fetch(`${base}/api/rooms/${room.roomId}/prompts`, {
     method: "POST",
     headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },

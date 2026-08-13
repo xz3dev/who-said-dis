@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -137,6 +137,51 @@ export async function runCodexFunnyJudge(candidates, options) {
       `model_reasoning_effort=\"${options.effort}\"`,
       "--sandbox",
       "read-only",
+      "--ignore-user-config",
+      "--ignore-rules",
+      "--strict-config",
+      "--disable",
+      "shell_tool",
+      "--disable",
+      "unified_exec",
+      "--disable",
+      "code_mode",
+      "--disable",
+      "code_mode_host",
+      "--disable",
+      "apps",
+      "--disable",
+      "hooks",
+      "--disable",
+      "plugins",
+      "--disable",
+      "browser_use",
+      "--disable",
+      "browser_use_external",
+      "--disable",
+      "browser_use_full_cdp_access",
+      "--disable",
+      "computer_use",
+      "--disable",
+      "image_generation",
+      "--disable",
+      "in_app_browser",
+      "--disable",
+      "multi_agent",
+      "--disable",
+      "multi_agent_v2",
+      "--disable",
+      "view_image",
+      "--disable",
+      "skill_search",
+      "--disable",
+      "skill_mcp_dependency_install",
+      "--disable",
+      "shell_snapshot",
+      "--disable",
+      "tool_call_mcp_elicitation",
+      "--config",
+      'web_search="disabled"',
       "--ephemeral",
       "--skip-git-repo-check",
       "--output-schema",
@@ -144,8 +189,11 @@ export async function runCodexFunnyJudge(candidates, options) {
       "--output-last-message",
       outputPath,
       "-"
-    ], input);
+    ], input, temporaryDirectory);
 
+    if ((await stat(outputPath)).size > 2_000_000) {
+      throw new Error("Codex funny ranking returned too much output");
+    }
     const result = JSON.parse(await readFile(outputPath, "utf8"));
     if (!Array.isArray(result.results)) throw new Error("Codex returned an invalid funny ranking");
     return result.results;
@@ -215,9 +263,9 @@ export function buildFunnyResultSchema(top) {
   };
 }
 
-function spawnCodex(binary, args, input) {
+function spawnCodex(binary, args, input, cwd) {
   return new Promise((resolve, reject) => {
-    const child = spawn(binary, args, { stdio: ["pipe", "ignore", "pipe"] });
+    const child = spawn(binary, args, { cwd, stdio: ["pipe", "ignore", "pipe"] });
     let stderr = "";
     const timeout = setTimeout(() => {
       child.kill("SIGTERM");

@@ -1,5 +1,4 @@
 import { checkbox } from "@inquirer/prompts";
-import { stripVTControlCharacters } from "node:util";
 import {
   DEFAULT_FUNNY_CANDIDATES,
   DEFAULT_FUNNY_SCAN,
@@ -7,6 +6,7 @@ import {
 } from "./funny.js";
 import { providers, scanInstallations } from "./providers/index.js";
 import { createSpinner } from "./spinner.js";
+import { safeTerminalText } from "./terminal.js";
 
 export async function runInteractiveCli(options = {}) {
   const io = options.io || console;
@@ -104,17 +104,13 @@ export function formatOrderedPrompts(prompts) {
   return prompts
     .map((prompt, index) => {
       const indentation = "   ";
-      return `${index + 1}. ${safeText(prompt.text).replace(/\r?\n/g, `\n${indentation}`)}`;
+      return `${index + 1}. ${safeTerminalText(prompt.text).replace(/\r?\n/g, `\n${indentation}`)}`;
     })
     .join("\n");
 }
 
 function oneLine(text) {
-  return safeText(text).replace(/\s+/g, " ").trim();
-}
-
-function safeText(text) {
-  return stripVTControlCharacters(String(text)).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "");
+  return safeTerminalText(text).replace(/\s+/g, " ").trim();
 }
 
 function timestampValue(timestamp) {

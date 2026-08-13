@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { readBoundedLines } from "../apps/cli/src/history-files.js";
 import { readCodexPrompts, resolveCodexHome } from "../apps/cli/src/index.js";
 
 async function fixture(lines) {
@@ -114,9 +115,17 @@ test("reads prompts from every session origin and ignores attached files", async
 });
 
 test("rejects invalid limits", async () => {
-  await assert.rejects(() => readCodexPrompts({ limit: 0 }), /positive integer/);
+  await assert.rejects(() => readCodexPrompts({ limit: 0 }), /between 1 and 10000/);
+  await assert.rejects(() => readCodexPrompts({ limit: 10_001 }), /between 1 and 10000/);
 });
 
 test("resolves an explicit Codex home", () => {
   assert.equal(resolveCodexHome("./fixture"), join(process.cwd(), "fixture"));
+});
+
+test("discards oversized history records without buffering the rest of the file", async () => {
+  const directory = await fixture(["0123456789", "valid"]);
+  const lines = [];
+  for await (const line of readBoundedLines(join(directory, "history.jsonl"), 8)) lines.push(line);
+  assert.deepEqual(lines, [null, "valid"]);
 });

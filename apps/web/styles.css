@@ -70,6 +70,8 @@ input:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
 .people small.you-label { color: var(--ink); margin-left: -7px; }
 .people small.prompt-imported { color: var(--primary); margin-left: auto; }
 .cli-panel code { display: block; overflow-x: auto; margin-top: 22px; padding: 15px; background: #0d1129; border: 1px solid var(--line); color: var(--highlight); }
+.cli-panel label { display: block; margin-top: 22px; }
+.cli-panel label + code { margin-top: 8px; overflow-wrap: anywhere; white-space: normal; }
 .start-panel { display: flex; flex-direction: column; justify-content: center; }
 .start-panel .button { margin-top: auto; }
 .game { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
@@ -162,7 +164,30 @@ input:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
 .no-voters { color: var(--muted); font-size: 11px; font-style: italic; }
 .recap-non-voters { margin: 14px 0 0; color: var(--muted); font-size: 11px; }
 
-footer { width: min(1120px, calc(100% - 40px)); margin: auto; padding: 18px 0 28px; color: var(--highlight); font-size: 11px; text-transform: uppercase; letter-spacing: .1em; }
+.site-footer { width: min(1120px, calc(100% - 40px)); margin: auto; padding: 18px 0 28px; display: flex; align-items: center; justify-content: space-between; gap: 24px; color: var(--highlight); font-size: 11px; text-transform: uppercase; letter-spacing: .1em; }
+.site-footer p { margin: 0; }
+.site-footer nav { display: flex; gap: 20px; }
+.site-footer a { color: inherit; text-underline-offset: 4px; }
+.site-footer a:hover, .site-footer a[aria-current="page"] { color: var(--ink); }
+.legal-page { max-width: 900px; padding: 7vh 0 96px; }
+.legal-page h1 { max-width: none; font-size: clamp(58px, 9vw, 96px); }
+.legal-intro { max-width: 730px; margin: 30px 0 62px; color: var(--muted); font-size: clamp(18px, 2vw, 22px); line-height: 1.55; }
+.legal-section { padding: 32px 0; display: grid; grid-template-columns: minmax(160px, 220px) minmax(0, 1fr); gap: 48px; border-top: 1px solid var(--line); }
+.legal-section h2 { margin: 0; font-size: 18px; line-height: 1.35; letter-spacing: -.025em; }
+.legal-section p { margin: 0 0 18px; color: var(--muted); line-height: 1.7; }
+.legal-section p:last-child { margin-bottom: 0; }
+.legal-section strong, .legal-section address { color: var(--ink); }
+.legal-section address { font-style: normal; line-height: 1.7; }
+.legal-section a, .privacy-summary a { color: var(--highlight); text-underline-offset: 3px; overflow-wrap: anywhere; }
+.legal-section code { color: var(--highlight); font-size: 12px; }
+.privacy-summary { margin: -18px 0 58px; padding: 24px 28px; background: var(--panel); border: 1px solid var(--line); }
+.privacy-summary strong { color: var(--highlight); text-transform: uppercase; font-size: 11px; letter-spacing: .12em; }
+.privacy-summary p { margin: 10px 0 0; color: var(--ink); font-size: 17px; line-height: 1.55; }
+.legal-table-wrap { margin: 24px 0; overflow-x: auto; }
+.legal-table-wrap table { width: 100%; border-collapse: collapse; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.legal-table-wrap th, .legal-table-wrap td { padding: 13px 14px; border: 1px solid var(--line); text-align: left; vertical-align: top; }
+.legal-table-wrap th { color: var(--ink); background: #0d1129; }
+.legal-updated { margin: 34px 0 0; color: var(--highlight); font-size: 11px; text-transform: uppercase; letter-spacing: .1em; }
 [hidden] { display: none !important; }
 @keyframes enter { from { opacity: 0; transform: translateY(8px); } }
 @keyframes pulse { to { opacity: .55; } }
@@ -188,6 +213,9 @@ footer { width: min(1120px, calc(100% - 40px)); margin: auto; padding: 18px 0 28
   .recap-grid, .recap-guesses { grid-template-columns: 1fr; }
   .copy-row { flex-direction: column; margin-top: 30px; }
   .copy-row .button { width: 100%; }
+  .site-footer { width: min(100% - 28px, 1120px); align-items: flex-start; flex-direction: column; }
+  .legal-page { padding-top: 5vh; }
+  .legal-section { grid-template-columns: 1fr; gap: 16px; }
 }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
