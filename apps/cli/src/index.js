@@ -13,17 +13,13 @@ import {
 export const DEFAULT_LIMIT = 100;
 
 export {
-  DEFAULT_FUNNY_CANDIDATES,
   DEFAULT_FUNNY_EFFORT,
   DEFAULT_FUNNY_MODEL,
-  DEFAULT_FUNNY_SCAN,
+  DEFAULT_FUNNY_PROMPT_LIMIT,
   DEFAULT_FUNNY_TOP,
   buildFunnyResultSchema,
   buildJudgePrompt,
-  findFunniestPrompts,
-  isEligiblePrompt,
-  scoreHumorSignals,
-  selectHumorCandidates
+  findFunniestPrompts
 } from "./funny.js";
 
 export { readClaudePrompts, resolveClaudeHome } from "./claude.js";

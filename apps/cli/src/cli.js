@@ -3,10 +3,9 @@ import { isIP } from "node:net";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import {
-  DEFAULT_FUNNY_CANDIDATES,
   DEFAULT_FUNNY_EFFORT,
   DEFAULT_FUNNY_MODEL,
-  DEFAULT_FUNNY_SCAN,
+  DEFAULT_FUNNY_PROMPT_LIMIT,
   DEFAULT_FUNNY_TOP,
   DEFAULT_LIMIT,
   findFunniestPrompts,
@@ -91,9 +90,7 @@ function parseArgs(args) {
     : funny
     ? {
         command: "funny",
-        scan: DEFAULT_FUNNY_SCAN,
         top: DEFAULT_FUNNY_TOP,
-        candidates: DEFAULT_FUNNY_CANDIDATES,
         model: DEFAULT_FUNNY_MODEL,
         effort: DEFAULT_FUNNY_EFFORT
       }
@@ -119,14 +116,6 @@ function parseArgs(args) {
       case "--token":
         if (!importing) throw new Error("--token is only available with the import command");
         options.token = requiredImportToken(args, ++index);
-        break;
-      case "--scan":
-        requireFunny(funny, argument);
-        options.scan = requiredValue(args, ++index, argument);
-        break;
-      case "--candidates":
-        requireFunny(funny, argument);
-        options.candidates = requiredValue(args, ++index, argument);
         break;
       case "--model":
         requireFunny(funny, argument);
@@ -204,13 +193,11 @@ Options:
   -h, --help                Show this help
 
 Funny options:
-      --scan <count>        Recent prompts to scan locally (default: 10000)
-      --candidates <count>  Shortlist sent to Codex (default: 250)
       --model <model>       Codex judge model (default: gpt-5.6-luna)
       --effort <effort>     Reasoning effort (default: medium)
 
-Reading and pre-ranking are local and read-only. The funny command sends shortlisted
-prompt text through your authenticated Codex CLI connection for model inference.`;
+Reading is local and read-only. The funny command sends the 700 most recent prompts
+through your authenticated Codex CLI connection for model inference.`;
 }
 
 export async function uploadPrompts(roomUrl, token, prompts, fetchImpl = fetch) {
@@ -271,17 +258,13 @@ function parseImportTarget(roomUrl, token) {
 }
 
 async function runFunnyCommand(options, io) {
-  const scan = parsePositiveInteger(options.scan, "scan");
-  const candidates = parsePositiveInteger(options.candidates, "candidates");
-
   const history = await readCodexPrompts({
     codexHome: options.codexHome,
     historyPath: options.historyPath,
-    limit: scan
+    limit: DEFAULT_FUNNY_PROMPT_LIMIT
   });
   const results = await findFunniestPrompts(history.prompts, {
     top: DEFAULT_FUNNY_TOP,
-    candidates,
     model: options.model,
     effort: options.effort
   });
@@ -317,10 +300,4 @@ function terminalSafeJson(value) {
     /[\u007F-\u009F\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/g,
     (character) => `\\u${character.codePointAt(0).toString(16).padStart(4, "0")}`
   );
-}
-
-function parsePositiveInteger(value, label) {
-  const parsed = Number(value);
-  if (!Number.isSafeInteger(parsed) || parsed < 1) throw new Error(`${label} must be a positive integer`);
-  return parsed;
 }

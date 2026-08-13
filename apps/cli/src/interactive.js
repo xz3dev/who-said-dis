@@ -1,7 +1,6 @@
 import { checkbox } from "@inquirer/prompts";
 import {
-  DEFAULT_FUNNY_CANDIDATES,
-  DEFAULT_FUNNY_SCAN,
+  DEFAULT_FUNNY_PROMPT_LIMIT,
   DEFAULT_FUNNY_TOP
 } from "./funny.js";
 import { providers, scanInstallations } from "./providers/index.js";
@@ -35,17 +34,16 @@ export async function runInteractiveCli(options = {}) {
   spinner.start();
   let results;
   try {
-    const prompts = await readAllPrompts(found, { limit: DEFAULT_FUNNY_SCAN });
+    const prompts = await readAllPrompts(found, { limit: DEFAULT_FUNNY_PROMPT_LIMIT });
     results = await analyzer.provider.analyze(analyzer.installation, prompts, {
-      top: DEFAULT_FUNNY_TOP,
-      candidates: DEFAULT_FUNNY_CANDIDATES
+      top: DEFAULT_FUNNY_TOP
     });
   } finally {
     spinner.stop();
   }
 
   if (results.length === 0) {
-    io.log("No eligible prompts found.");
+    io.log("No prompts found.");
     return { status: "empty", selections: [] };
   }
 
@@ -75,7 +73,7 @@ export function selectAnalyzer(found) {
 
 /** Merge recent prompts from every distinct provider data store. */
 export async function readAllPrompts(found, options = {}) {
-  const limit = options.limit || DEFAULT_FUNNY_SCAN;
+  const limit = options.limit || DEFAULT_FUNNY_PROMPT_LIMIT;
   const dataStores = new Set();
   const prompts = [];
   const seenPrompts = new Set();

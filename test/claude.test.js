@@ -114,7 +114,7 @@ process.stdin.on("end", () => {
   await chmod(executable, 0o755);
 
   const result = await runClaudeFunnyJudge(
-    [{ id: "candidate-0001", heuristicScore: 5, prompt: { text: "WHY?!" } }],
+    [{ id: "candidate-0001", prompt: { text: "WHY?!" } }],
     { top: 1, model: "haiku", effort: "medium", claudeBinary: executable }
   );
   const invocation = JSON.parse(await readFile(capture, "utf8"));

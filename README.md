@@ -91,9 +91,9 @@ The wizard will:
 
 1. Scan `PATH` and common installation directories for supported clients.
 2. Print every installation as `provider: /path/to/executable` and use all of their prompt histories.
-3. Scan up to 10,000 recent prompts across all distinct local data stores.
+3. Read the 700 most recent prompts across all distinct local data stores.
 4. Use Codex with Luna for analysis when available, otherwise Claude with Haiku.
-5. Analyze only prompts containing at most three lines and 400 characters.
+5. Send those prompts directly to the analyzer without local language-specific filtering or scoring.
 6. Show five candidates in an interactive checkbox list. All are selected initially; use Space to toggle and Enter to confirm.
 7. Print the chosen prompts under `Using these:`.
 
@@ -116,13 +116,12 @@ who-said-dis --history /path/to/history.jsonl
 
 ```sh
 who-said-dis funny
-who-said-dis funny --scan 10000 --json
+who-said-dis funny --json
 ```
 
-The `funny` command scores every prompt locally using broad signals such as comic frustration,
-typo chaos, escalation, excessive punctuation, accidental phrasing, and deadpan brevity. It sends
-a bounded shortlist (250 by default) to the selected provider's fast analyzer—Luna for Codex or
-Haiku for Claude—at medium reasoning effort through the selected local CLI. The interactive wizard shows the five resulting prompt
+The `funny` command sends the 700 most recent prompts directly to the selected provider's fast
+analyzer—Luna for Codex or Haiku for Claude—at medium reasoning effort through the selected local
+CLI. There is no local filtering, scoring, or truncation of prompt text. The interactive wizard shows the five resulting prompt
 texts without generated explanations, sentiment, or labels.
 
 The analyzer subprocess does not persist its analysis session. Both analyzers run from a fresh,
@@ -130,8 +129,8 @@ empty temporary directory. Codex ignores user configuration and execution rules,
 tool-capable features and web search, and runs ephemerally in a read-only sandbox. Claude uses safe
 mode with tools, plugins, hooks, MCP configuration, project instructions, skills, and session
 persistence disabled.
-Model inference still uses the selected client's authenticated connection, so shortlisted prompt
-text is sent to that provider's configured service.
+Model inference still uses the selected client's authenticated connection, so the text of the 700 most
+recent prompts is sent to that provider's configured service.
 
 The Codex directory is resolved in this order:
 

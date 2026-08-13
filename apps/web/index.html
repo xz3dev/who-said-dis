@@ -18,11 +18,11 @@
       <section id="landing" class="view hero" hidden>
         <div class="eyebrow">A party game made from your AI history</div>
         <h1>Your prompts.<br /><em>Out of context.</em></h1>
-        <p class="lede">Create a private room, invite your friends, and discover who really typed that into an AI.</p>
+        <p class="lede">Create a private room, invite your friends, and guess who really typed that weird ass prompt into an AI.</p>
         <form id="create-form" class="action-card">
           <div>
-            <strong>Start a new room</strong>
-            <span>No account. Rooms disappear after 24 hours.</span>
+            <strong>Create a room</strong>
+            <span>No account needed. Rooms disappear after 24 hours.</span>
           </div>
           <div id="create-turnstile" class="turnstile"></div>
           <button id="create-button" class="button primary" type="submit" disabled>Create room <span>→</span></button>
@@ -33,7 +33,7 @@
       <section id="join" class="view centered" hidden>
         <div class="eyebrow">You’ve been invited</div>
         <h1>Who are you?</h1>
-        <p class="lede compact">Choose the name your friends will recognize.</p>
+        <p class="lede compact">Choose a name your peers will recognize.</p>
         <form id="join-form" class="join-card">
           <label for="name">Your name</label>
           <input id="name" name="name" maxlength="32" autocomplete="nickname" placeholder="Ada" required autofocus />
@@ -47,7 +47,7 @@
         <div class="room-heading">
           <div>
             <h1 id="room-title">Get everyone ready.</h1>
-            <p id="room-subtitle" class="lede compact">Share the invite, then bring your funniest prompts from the CLI.</p>
+            <p id="room-subtitle" class="lede compact">Share the invite link. Then import your prompts from Claude or Codex using our CLI.</p>
           </div>
         </div>
 
@@ -82,7 +82,8 @@
               <span class="panel-number">03</span>
               <h2>Ready to play?</h2>
               <p id="prompt-total">Waiting for the first prompts.</p>
-              <button id="start-game" class="button primary wide" type="button" disabled>Start game <span>→</span></button>
+              <button id="start-game" class="button primary wide" type="button" aria-describedby="start-hint" disabled>Start game <span>→</span></button>
+              <p id="start-hint" class="muted">Import at least one prompt to start the game.</p>
               <p id="start-error" class="error" role="alert"></p>
             </section>
         </div>
@@ -128,7 +129,8 @@
     </main>
     <footer class="site-footer">
       <p>Private by default · No accounts · Built for delightfully questionable prompts</p>
-      <nav aria-label="Legal">
+      <nav aria-label="Footer links">
+        <a href="https://github.com/xz3dev/who-said-dis/" rel="external">Source Code</a>
         <a href="/imprint">Imprint</a>
         <a href="/privacy">Privacy</a>
       </nav>

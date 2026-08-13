@@ -28,6 +28,8 @@ test("prints help without reading history", async () => {
   const output = [];
   await runCli(["--help"], { log: (value) => output.push(value) });
   assert.match(output[0], /--limit/);
+  assert.match(output[0], /700 most recent prompts/);
+  assert.doesNotMatch(output[0], /--scan|--candidates/);
 });
 
 test("uploads only selected prompt text and citations with the room token", async () => {

@@ -29,7 +29,6 @@ export const claudeProvider = {
   async analyze(installation, prompts, options = {}) {
     return findFunniestPrompts(prompts, {
       top: options.top,
-      candidates: options.candidates,
       model: this.analyzerModel,
       effort: "medium",
       judge: (shortlist, judgeOptions) =>

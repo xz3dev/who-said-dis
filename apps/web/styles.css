@@ -73,6 +73,7 @@ input:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
 .cli-panel code { display: block; overflow-x: auto; margin-top: 22px; padding: 15px; background: #0d1129; border: 1px solid var(--line); color: var(--highlight); }
 .start-panel { display: flex; flex-direction: column; justify-content: center; }
 .start-panel .button { margin-top: auto; }
+#start-game:disabled { cursor: default; }
 .game { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .round-top { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: stretch; }
 .round-top:has(.next-action:not([hidden])) { grid-template-columns: minmax(0, 1fr) minmax(210px, 270px); }

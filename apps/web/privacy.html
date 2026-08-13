@@ -57,7 +57,7 @@
           <h2>4. Local prompt analysis</h2>
           <div>
             <p>The command-line client reads supported AI-client histories locally and ignores model output, tool output, attachments, and system context. The operator does not receive your history or analysis shortlist.</p>
-            <p>For ranking, a bounded shortlist of prompt text is sent through either your authenticated Codex connection to OpenAI or your authenticated Claude Code connection to Anthropic. That processing is governed by your account and the selected provider’s terms and privacy notice. Review the <a href="https://openai.com/policies/privacy-policy/" rel="external">OpenAI privacy policy</a> or <a href="https://www.anthropic.com/legal/privacy" rel="external">Anthropic privacy policy</a>, as applicable.</p>
+            <p>For ranking, your 700 most recent prompts are sent through either your authenticated Codex connection to OpenAI or your authenticated Claude Code connection to Anthropic, without local language-specific filtering or scoring. That processing is governed by your account and the selected provider’s terms and privacy notice. Review the <a href="https://openai.com/policies/privacy-policy/" rel="external">OpenAI privacy policy</a> or <a href="https://www.anthropic.com/legal/privacy" rel="external">Anthropic privacy policy</a>, as applicable.</p>
             <p>Only the prompts you explicitly confirm, together with their local citation identifiers, are sent to the who said dis? room. Do not select confidential information, special-category data, or third-party personal data unless you are permitted to share it with everyone in that room.</p>
           </div>
         </section>
@@ -126,7 +126,8 @@
 
     <footer class="site-footer">
       <p>Private by default · No accounts</p>
-      <nav aria-label="Legal">
+      <nav aria-label="Footer links">
+        <a href="https://github.com/xz3dev/who-said-dis/" rel="external">GitHub</a>
         <a href="/imprint">Imprint</a>
         <a href="/privacy" aria-current="page">Privacy</a>
       </nav>

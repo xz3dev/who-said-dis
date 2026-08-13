@@ -10,7 +10,7 @@ const state = {
 };
 
 const elements = Object.fromEntries(
-  ["landing", "join", "room", "missing", "create-form", "create-button", "create-error", "join-form", "join-button", "join-error", "name", "room-title", "room-subtitle", "lobby", "game", "invite-url", "copy-invite", "copy-status", "people", "people-count", "cli-command", "copy-cli", "cli-status", "prompt-total", "start-game", "start-error", "prompt-card", "round-label", "timer", "prompt-text", "answer-title", "vote-progress", "answer-options", "vote-status", "reveal-summary", "round-results", "next-prompt", "final-recap", "recap-grid", "score-podium"]
+  ["landing", "join", "room", "missing", "create-form", "create-button", "create-error", "join-form", "join-button", "join-error", "name", "room-title", "room-subtitle", "lobby", "game", "invite-url", "copy-invite", "copy-status", "people", "people-count", "cli-command", "copy-cli", "cli-status", "prompt-total", "start-game", "start-hint", "start-error", "prompt-card", "round-label", "timer", "prompt-text", "answer-title", "vote-progress", "answer-options", "vote-status", "reveal-summary", "round-results", "next-prompt", "final-recap", "recap-grid", "score-podium"]
     .map((id) => [id, document.getElementById(id)])
 );
 
@@ -229,11 +229,12 @@ function renderRoom(room) {
   if (inLobby) {
     stopCountdown();
     elements["room-title"].textContent = "Get everyone ready.";
-    elements["room-subtitle"].textContent = "Share the invite, then bring your funniest prompts from the CLI.";
+    elements["room-subtitle"].textContent = "Share the invite link. Then import your prompts from Claude or Codex using our CLI.";
     elements["prompt-total"].textContent = room.totalPrompts
       ? `Participants added ${room.totalPrompts} prompt${room.totalPrompts === 1 ? "" : "s"}.`
       : "Waiting for the first prompts.";
     elements["start-game"].disabled = !game.canStart;
+    elements["start-hint"].hidden = game.canStart;
     return;
   }
 
