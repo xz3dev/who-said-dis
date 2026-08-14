@@ -5,6 +5,9 @@ import { join } from "node:path";
 import test from "node:test";
 import {
   DEFAULT_FUNNY_PROMPT_LIMIT,
+  MAX_FUNNY_PROMPT_LENGTH,
+  MIN_FUNNY_SCORE,
+  buildFunnyResultSchema,
   buildJudgePrompt,
   findFunniestPrompts,
   runCodexFunnyJudge
@@ -27,7 +30,25 @@ test("judge prompt treats candidate text as untrusted data", () => {
   );
   assert.match(built, /untrusted quoted data/);
   assert.match(built, /Do not use tools/);
-  assert.match(built, /angry or exasperated tone/);
+  assert.match(built, /Aggressive comedy/);
+  assert.match(built, /Typo-rich comedy/);
+  assert.match(built, /Instructional nonsense/);
+  assert.match(built, /Confusion can be the joke/);
+  assert.match(built, /Return at most 1 distinct candidate/);
+  assert.match(built, new RegExp(`Below ${MIN_FUNNY_SCORE}: not funny enough`));
+});
+
+test("judge may return fewer results and low-scoring candidates are discarded", async () => {
+  const schema = buildFunnyResultSchema(5);
+  assert.equal(schema.properties.results.minItems, 0);
+  assert.equal(schema.properties.results.maxItems, 5);
+  assert.equal(schema.properties.results.items.properties.score.minimum, MIN_FUNNY_SCORE);
+
+  const results = await findFunniestPrompts([prompt("ordinary request", 1)], {
+    top: 5,
+    judge: async (candidates) => [{ id: candidates[0].id, score: MIN_FUNNY_SCORE - 1 }]
+  });
+  assert.deepEqual(results, []);
 });
 
 test("maps structured judge results back to original prompts", async () => {
@@ -43,13 +64,15 @@ test("maps structured judge results back to original prompts", async () => {
   assert.equal(results[0].prompt.text, "WHY?!?!");
 });
 
-test("analysis sends the last 700 prompts directly without filtering or truncating text", async () => {
+test("analysis discards prompts over 500 characters before sending the last 1,000", async () => {
   const prompts = Array.from(
     { length: DEFAULT_FUNNY_PROMPT_LIMIT + 2 },
     (_, index) => prompt(`prompt ${index}`, index)
   );
-  const multilingualLongPrompt = prompt(`${"これは長いプロンプトです。\n".repeat(150)}最後まで送信`, 2);
-  prompts[2] = multilingualLongPrompt;
+  const boundaryPrompt = prompt("🎉".repeat(MAX_FUNNY_PROMPT_LENGTH), 1);
+  const oversizedPrompt = prompt("🎉".repeat(MAX_FUNNY_PROMPT_LENGTH + 1), 2);
+  prompts[1] = boundaryPrompt;
+  prompts[2] = oversizedPrompt;
   let judgedCandidates = [];
 
   const results = await findFunniestPrompts(prompts, {
@@ -61,11 +84,12 @@ test("analysis sends the last 700 prompts directly without filtering or truncati
   });
 
   assert.equal(judgedCandidates.length, DEFAULT_FUNNY_PROMPT_LIMIT);
-  assert.equal(judgedCandidates[0].prompt, multilingualLongPrompt);
+  assert.equal(judgedCandidates[0].prompt, boundaryPrompt);
+  assert.equal(judgedCandidates.some(({ prompt }) => prompt === oversizedPrompt), false);
   assert.equal(judgedCandidates.at(-1).prompt, prompts.at(-1));
   assert.equal("heuristicScore" in judgedCandidates[0], false);
-  assert.match(buildJudgePrompt(judgedCandidates, 1), /最後まで送信/);
-  assert.equal(results[0].prompt, multilingualLongPrompt);
+  assert.match(buildJudgePrompt(judgedCandidates, 1), /🎉/);
+  assert.equal(results[0].prompt, boundaryPrompt);
 });
 
 test("Codex judge ignores local customization and runs from a disposable empty directory", async (context) => {

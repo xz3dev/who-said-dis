@@ -1,6 +1,6 @@
 {
   "name": "@xz3dev/who-said-dis",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "The local prompt-import client for the game at who-said-dis.com.",
   "type": "module",
   "bin": {

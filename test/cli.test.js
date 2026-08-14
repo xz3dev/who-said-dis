@@ -28,7 +28,9 @@ test("prints help without reading history", async () => {
   const output = [];
   await runCli(["--help"], { log: (value) => output.push(value) });
   assert.match(output[0], /--limit/);
-  assert.match(output[0], /700 most recent prompts/);
+  assert.match(output[0], /reads all history/);
+  assert.match(output[0], /over 500 characters/);
+  assert.match(output[0], /up to 1,000/);
   assert.doesNotMatch(output[0], /--scan|--candidates/);
 });
 

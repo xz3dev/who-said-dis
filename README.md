@@ -91,11 +91,12 @@ The wizard will:
 
 1. Scan `PATH` and common installation directories for supported clients.
 2. Print every installation as `provider: /path/to/executable` and use all of their prompt histories.
-3. Read the 700 most recent prompts across all distinct local data stores.
-4. Use Codex with Luna for analysis when available, otherwise Claude with Haiku.
-5. Send those prompts directly to the analyzer without local language-specific filtering or scoring.
-6. Show five candidates in an interactive checkbox list. All are selected initially; use Space to toggle and Enter to confirm.
-7. Print the chosen prompts under `Using these:`.
+3. Read every available prompt across all distinct local data stores.
+4. Discard prompts longer than 500 characters and keep up to the 1,000 most recent remaining prompts.
+5. Use Codex with Luna for analysis when available, otherwise Claude with Haiku.
+6. Send those prompts directly to the analyzer without local language-specific scoring.
+7. Show up to five genuinely funny candidates in an interactive checkbox list. All are selected initially; use Space to toggle and Enter to confirm.
+8. Print the chosen prompts under `Using these:`.
 
 During local development:
 
@@ -119,9 +120,10 @@ who-said-dis funny
 who-said-dis funny --json
 ```
 
-The `funny` command sends the 700 most recent prompts directly to the selected provider's fast
+The `funny` command reads the complete history, removes prompts over 500 characters, and sends up to
+1,000 of the most recent remaining prompts to the selected provider's fast
 analyzer—Luna for Codex or Haiku for Claude—at medium reasoning effort through the selected local
-CLI. There is no local filtering, scoring, or truncation of prompt text. The interactive wizard shows the five resulting prompt
+CLI. There is no other local filtering or truncation of prompt text. The judge applies a strict humor threshold and may return fewer than five results—or none. The interactive wizard shows the resulting prompt
 texts without generated explanations, sentiment, or labels.
 
 The analyzer subprocess does not persist its analysis session. Both analyzers run from a fresh,
@@ -129,8 +131,8 @@ empty temporary directory. Codex ignores user configuration and execution rules,
 tool-capable features and web search, and runs ephemerally in a read-only sandbox. Claude uses safe
 mode with tools, plugins, hooks, MCP configuration, project instructions, skills, and session
 persistence disabled.
-Model inference still uses the selected client's authenticated connection, so the text of the 700 most
-recent prompts is sent to that provider's configured service.
+Model inference still uses the selected client's authenticated connection, so up to 1,000 eligible
+prompts are sent to that provider's configured service.
 
 The Codex directory is resolved in this order:
 

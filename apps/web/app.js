@@ -93,7 +93,7 @@ elements["next-prompt"].addEventListener("click", () => advanceGame("next"));
 
 elements["answer-options"].addEventListener("click", async (event) => {
   const button = event.target.closest("button[data-participant-id]");
-  if (!button || state.room?.game.phase !== "voting" || state.room.game.yourVoteId) return;
+  if (!button || state.room?.game.phase !== "voting" || state.room.game.yourVoteId || state.room.game.isPromptAuthor) return;
   for (const option of elements["answer-options"].querySelectorAll("button")) option.disabled = true;
   elements["vote-status"].textContent = "Locking in your vote…";
   try {
@@ -385,7 +385,7 @@ function renderFinalRecap(rounds) {
       item.append(choice, voters);
       return item;
     }));
-    const nonVoters = round.results.filter((result) => !result.guessParticipantId);
+    const nonVoters = round.results.filter((result) => !result.skipped && !result.guessParticipantId);
     if (nonVoters.length > 0) {
       const missed = document.createElement("p");
       missed.className = "recap-non-voters";
@@ -411,7 +411,7 @@ function renderAnswers(game) {
     button.className = "answer-option";
     button.dataset.participantId = option.id;
     button.textContent = option.name;
-    button.disabled = revealed || Boolean(game.yourVoteId);
+    button.disabled = revealed || Boolean(game.yourVoteId) || game.isPromptAuthor;
     if (option.id === game.yourVoteId) button.classList.add("selected");
     if (revealed && option.id === game.correctParticipantId) button.classList.add("correct");
     if (revealed && option.id === game.yourVoteId && option.id !== game.correctParticipantId) button.classList.add("wrong");
@@ -419,7 +419,9 @@ function renderAnswers(game) {
   }));
 
   if (!revealed) {
-    elements["vote-status"].textContent = game.yourVoteId
+    elements["vote-status"].textContent = game.isPromptAuthor
+      ? "You wrote this prompt, so you skip this vote."
+      : game.yourVoteId
       ? "Vote locked. Waiting for everyone else…"
       : "Pick one name. Votes cannot be changed.";
     elements["reveal-summary"].hidden = true;
@@ -431,8 +433,10 @@ function renderAnswers(game) {
   const yourResult = game.results.find((result) => result.participantId === state.room.you.id);
   elements["vote-status"].textContent = "";
   elements["reveal-summary"].hidden = false;
-  elements["reveal-summary"].className = `reveal-summary ${yourResult?.correct ? "correct" : "wrong"}`;
-  elements["reveal-summary"].textContent = yourResult?.correct
+  elements["reveal-summary"].className = `reveal-summary ${yourResult?.skipped ? "" : yourResult?.correct ? "correct" : "wrong"}`;
+  elements["reveal-summary"].textContent = yourResult?.skipped
+    ? "This one was yours, so you skipped the vote."
+    : yourResult?.correct
     ? `You got it right! +${yourResult.points} point${yourResult.points === 1 ? "" : "s"}.`
     : yourResult?.guessParticipantId
       ? "Not quite. Better luck next round."
@@ -440,11 +444,13 @@ function renderAnswers(game) {
   const names = new Map(game.options.map((option) => [option.id, option.name]));
   elements["round-results"].replaceChildren(...game.results.map((result) => {
     const item = document.createElement("li");
-    item.className = result.correct ? "correct" : "wrong";
+    item.className = result.skipped ? "" : result.correct ? "correct" : "wrong";
     const player = document.createElement("strong");
     player.textContent = result.name;
     const guess = document.createElement("span");
-    guess.textContent = result.guessParticipantId
+    guess.textContent = result.skipped
+      ? "wrote the prompt · skipped voting"
+      : result.guessParticipantId
       ? `picked ${names.get(result.guessParticipantId) || "someone"}${result.correct ? ` · +${result.points} points` : ""}`
       : "did not vote";
     item.append(player, guess);

@@ -35,7 +35,7 @@ There is nothing to install globally: the command shown by the game runs the rig
 
 Your history is read locally and is not modified. Attachments, model output, tool output, and system context are ignored.
 
-The client sends your 700 most recent prompts through your locally authenticated Codex or Claude Code connection without local language-specific filtering or scoring. Only the prompts you explicitly keep, together with their local citations, are uploaded to your private game room.
+The client reads all available prompts, discards those over 500 characters, and sends up to the 1,000 most recent remaining prompts through your locally authenticated Codex or Claude Code connection without local language-specific scoring. Only the prompts you explicitly keep, together with their local citations, are uploaded to your private game room.
 
 ## License
 

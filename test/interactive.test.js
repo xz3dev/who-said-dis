@@ -121,12 +121,15 @@ test("ordered multiline output is stable", () => {
 
 test("merges data stores, skips duplicate installations, and keeps the global recency limit", async () => {
   let reads = 0;
+  let readOptions;
   const provider = {
     id: "codex",
-    readPrompts: async () => {
+    readPrompts: async (_installation, options) => {
       reads += 1;
+      readOptions = options;
       return [
         { ...prompt("old"), timestamp: "2025-01-01T00:00:00.000Z", citation: "one" },
+        { ...prompt("x".repeat(501)), timestamp: "2025-01-03T00:00:00.000Z", citation: "too-long" },
         { ...prompt("new"), timestamp: "2025-01-02T00:00:00.000Z", citation: "two" }
       ];
     }
@@ -138,5 +141,6 @@ test("merges data stores, skips duplicate installations, and keeps the global re
 
   const prompts = await readAllPrompts(found, { limit: 1 });
   assert.equal(reads, 1);
+  assert.deepEqual(readOptions, { unlimited: true });
   assert.deepEqual(prompts.map((item) => item.text), ["new"]);
 });

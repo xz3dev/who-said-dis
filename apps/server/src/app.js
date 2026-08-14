@@ -199,6 +199,7 @@ export function createApp({ database, config, fetchImpl = fetch, eventHub = new 
           Number(body.participantId)
         );
         if (result.error === "UNAUTHORIZED") return json(response, 401, { error: "Join this room to vote." });
+        if (result.error === "PROMPT_AUTHOR") return json(response, 409, { error: "You wrote this prompt, so you skip this vote." });
         if (result.error === "ALREADY_VOTED") return json(response, 409, { error: "Your vote is already locked in." });
         if (result.error) return json(response, 409, { error: "Voting has closed or that answer is unavailable." });
         if (result.revealed) {

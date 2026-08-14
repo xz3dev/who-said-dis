@@ -27,6 +27,7 @@ test("reads recent Claude prompts and excludes pasted attachments", async () => 
   await writeFile(historyPath, `${records.map(JSON.stringify).join("\n")}\nnot-json\n`);
 
   const result = await readClaudePrompts({ claudeHome, limit: 2 });
+  const unlimited = await readClaudePrompts({ claudeHome, unlimited: true });
 
   assert.deepEqual(result.prompts.map((prompt) => prompt.text), ["second prompt", "third prompt"]);
   assert.ok(result.prompts.every((prompt) => !prompt.text.includes("SECRET ATTACHMENT")));
@@ -34,6 +35,27 @@ test("reads recent Claude prompts and excludes pasted attachments", async () => 
   assert.equal(result.prompts[0].client, "Claude Code");
   assert.match(result.prompts[0].citation, /^claude:\/\/session\/session-a\/prompt\/2#sha256=/);
   assert.equal(result.diagnostics.invalidLines, 1);
+  assert.deepEqual(unlimited.prompts.map((prompt) => prompt.text), [
+    "first prompt",
+    "second prompt",
+    "third prompt"
+  ]);
+});
+
+test("Claude unlimited mode reads beyond the normal prompt cap", async () => {
+  const claudeHome = await mkdtemp(join(tmpdir(), "who-said-dis-claude-unlimited-"));
+  const records = Array.from({ length: 105 }, (_, index) => ({
+    display: `prompt ${index}`,
+    timestamp: index + 1,
+    sessionId: "session-a"
+  }));
+  await writeFile(join(claudeHome, "history.jsonl"), `${records.map(JSON.stringify).join("\n")}\n`);
+
+  const normal = await readClaudePrompts({ claudeHome });
+  const unlimited = await readClaudePrompts({ claudeHome, unlimited: true });
+
+  assert.equal(normal.prompts.length, 100);
+  assert.equal(unlimited.prompts.length, 105);
 });
 
 test("merges project transcripts while excluding tool results, metadata, and subagents", async () => {

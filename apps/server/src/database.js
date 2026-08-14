@@ -249,6 +249,9 @@ export function startNextRound(database, publicId, sessionToken, timeoutSeconds,
     "SELECT id FROM participants WHERE room_id = ? AND id != ? ORDER BY RANDOM() LIMIT ?"
   ).all(room.id, prompt.participant_id, MAX_ANSWER_OPTIONS - 1);
   const optionIds = shuffle([prompt.participant_id, ...others.map((item) => item.id)]);
+  const eligibleVoterCount = Number(database.prepare(
+    "SELECT COUNT(*) AS count FROM participants WHERE room_id = ? AND id != ?"
+  ).get(room.id, prompt.participant_id).count);
   const deadline = now + timeoutSeconds * 1000;
   transaction(database, () => {
     database.prepare("UPDATE prompts SET used = 1, played_round = ? WHERE id = ?").run(room.round_number + 1, prompt.id);
@@ -258,8 +261,9 @@ export function startNextRound(database, publicId, sessionToken, timeoutSeconds,
     database.prepare(
       "UPDATE rooms SET phase = 'voting', current_prompt_id = ?, round_number = ?, vote_deadline = ?, vote_started_at = ? WHERE id = ?"
     ).run(prompt.id, room.round_number + 1, deadline, now, room.id);
+    if (eligibleVoterCount === 0) revealCurrentRound(database, room.id);
   });
-  return { phase: "voting", deadline };
+  return eligibleVoterCount === 0 ? { phase: "reveal" } : { phase: "voting", deadline };
 }
 
 export function castVote(database, publicId, sessionToken, guessedParticipantId, now = Date.now()) {
@@ -271,6 +275,10 @@ export function castVote(database, publicId, sessionToken, guessedParticipantId,
     "SELECT id, phase, current_prompt_id, vote_deadline, vote_started_at FROM rooms WHERE id = ?"
   ).get(participant.room_id);
   if (!room || room.phase !== "voting" || now >= room.vote_deadline) return { error: "VOTING_CLOSED" };
+  const prompt = database.prepare(
+    "SELECT participant_id FROM prompts WHERE id = ?"
+  ).get(room.current_prompt_id);
+  if (!prompt || prompt.participant_id === participant.id) return { error: "PROMPT_AUTHOR" };
   const option = database.prepare(
     `SELECT prompt.participant_id AS correct_participant_id
      FROM round_options option
@@ -289,9 +297,11 @@ export function castVote(database, publicId, sessionToken, guessedParticipantId,
     throw error;
   }
   const voteCount = database.prepare("SELECT COUNT(*) AS count FROM votes WHERE prompt_id = ?").get(room.current_prompt_id).count;
-  const participantCount = database.prepare("SELECT COUNT(*) AS count FROM participants WHERE room_id = ?").get(room.id).count;
-  if (voteCount >= participantCount) revealCurrentRound(database, room.id);
-  return { accepted: true, revealed: voteCount >= participantCount };
+  const eligibleVoterCount = database.prepare(
+    "SELECT COUNT(*) AS count FROM participants WHERE room_id = ? AND id != ?"
+  ).get(room.id, prompt.participant_id).count;
+  if (voteCount >= eligibleVoterCount) revealCurrentRound(database, room.id);
+  return { accepted: true, revealed: voteCount >= eligibleVoterCount };
 }
 
 export function revealExpiredRound(database, publicId, now = Date.now()) {
@@ -391,6 +401,7 @@ function buildGameState(database, roomId, viewerId, room, participants) {
      WHERE v.prompt_id = ? ORDER BY v.created_at, v.voter_id`
   ).all(prompt.id);
   const yourVote = votes.find((vote) => vote.voter_id === viewerId)?.guessed_participant_id || null;
+  const isPromptAuthor = viewerId === prompt.participant_id;
   const state = {
     phase: room.phase,
     round: room.round_number,
@@ -398,7 +409,8 @@ function buildGameState(database, roomId, viewerId, room, participants) {
     options,
     deadline: room.vote_deadline ? new Date(room.vote_deadline).toISOString() : null,
     voteCount: votes.length,
-    participantCount: participants.length,
+    participantCount: Math.max(0, participants.length - 1),
+    isPromptAuthor,
     yourVoteId: yourVote
   };
   if (room.phase === "reveal") {
@@ -409,6 +421,7 @@ function buildGameState(database, roomId, viewerId, room, participants) {
       return {
         participantId: person.id,
         name: person.name,
+        skipped: person.id === prompt.participant_id,
         guessParticipantId: vote?.guessed_participant_id || null,
         correct,
         points: correct ? Number(vote.points ?? 100) : 0
@@ -453,6 +466,7 @@ function buildGameRecap(database, roomId, participants) {
         return {
           participantId: person.id,
           name: person.name,
+          skipped: person.id === prompt.participant_id,
           guessParticipantId: vote?.guessed_participant_id || null,
           guessName: vote?.guessed_name || null,
           correct,

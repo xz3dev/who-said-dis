@@ -41,7 +41,7 @@ export function resolveCodexHome(explicitHome) {
  * for prompts whose session rollout is no longer present.
  */
 export async function readCodexPrompts(options = {}) {
-  const limit = parseLimit(options.limit ?? DEFAULT_LIMIT);
+  const limit = options.unlimited === true ? Infinity : parseLimit(options.limit ?? DEFAULT_LIMIT);
   const codexHome = resolveCodexHome(options.codexHome);
 
   if (options.historyPath) {

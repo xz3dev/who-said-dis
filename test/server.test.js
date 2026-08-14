@@ -38,7 +38,7 @@ test("advertises the local or published CLI command for the current environment"
   const timed = readConfig({ TURNSTILE_BYPASS: "1", VOTE_TIMEOUT_SECONDS: "12" });
 
   assert.equal(development.cliCommand, "npm run cli --");
-  assert.equal(production.cliCommand, "npx --yes @xz3dev/who-said-dis@0.4.2");
+  assert.equal(production.cliCommand, "npx --yes @xz3dev/who-said-dis@0.4.3");
   assert.equal(production.legal.email, "legal@example.com");
   assert.equal(overridden.cliCommand, "custom-cli --dev");
   assert.equal(development.voteTimeoutSeconds, 45);
@@ -161,8 +161,15 @@ test("imports prompts under a participant and runs voting through reveal and fin
   assert.equal(voting.game.options.length, 4);
   assert.ok(voting.game.options.some((option) => option.id === players[0].participantId));
   assert.equal("correctParticipantId" in voting.game, false);
+  assert.equal(voting.game.participantCount, players.length - 1);
+  const authorState = getRoomForSession(database, room.publicId, players[0].sessionToken, now + 13);
+  assert.equal(authorState.game.isPromptAuthor, true);
+  assert.equal(
+    castVote(database, room.publicId, players[0].sessionToken, players[0].participantId, now + 19).error,
+    "PROMPT_AUTHOR"
+  );
 
-  for (let index = 0; index < players.length; index += 1) {
+  for (let index = 1; index < players.length; index += 1) {
     const vote = castVote(
       database,
       room.publicId,
@@ -175,8 +182,9 @@ test("imports prompts under a participant and runs voting through reveal and fin
   const revealed = getRoomForSession(database, room.publicId, players[1].sessionToken, now + 30);
   assert.equal(revealed.game.phase, "reveal");
   assert.equal(revealed.game.correctParticipantId, players[0].participantId);
-  assert.ok(revealed.game.results.every((result) => result.correct));
-  assert.ok(revealed.game.results.every((result) => result.points === 200));
+  assert.equal(revealed.game.results.find((result) => result.participantId === players[0].participantId).skipped, true);
+  assert.ok(revealed.game.results.filter((result) => !result.skipped).every((result) => result.correct));
+  assert.ok(revealed.game.results.filter((result) => !result.skipped).every((result) => result.points === 200));
   assert.equal(revealed.you.score, 200);
 
   assert.equal(startNextRound(database, room.publicId, players[0].sessionToken, 45, now + 31).phase, "finished");
@@ -188,7 +196,8 @@ test("imports prompts under a participant and runs voting through reveal and fin
   assert.equal(finished.recap[0].author.name, "Ada");
   assert.equal(finished.recap[0].options.length, 4);
   assert.ok(finished.recap[0].options.some((option) => option.id === players[0].participantId));
-  assert.ok(finished.recap[0].results.every((result) => result.correct));
+  assert.equal(finished.recap[0].results.find((result) => result.participantId === players[0].participantId).skipped, true);
+  assert.ok(finished.recap[0].results.filter((result) => !result.skipped).every((result) => result.correct));
   database.close();
 });
 
@@ -204,14 +213,16 @@ test("reveals a round after its configured deadline", () => {
   const now = 1_700_000_000_000;
   const room = createRoom(database, now);
   const joined = joinRoom(database, room.publicId, room.joinToken, "Ada", now + 1);
+  const voter = joinRoom(database, room.publicId, room.joinToken, "Grace", now + 2);
   const token = issueImportToken(database, room.publicId, joined.sessionToken, now + 2);
   importPrompts(database, room.publicId, token.token, [{ text: "timed prompt" }], now + 3);
   startNextRound(database, room.publicId, joined.sessionToken, 12, now + 4);
 
-  const revealed = getRoomForSession(database, room.publicId, joined.sessionToken, now + 12_005);
+  const revealed = getRoomForSession(database, room.publicId, voter.sessionToken, now + 12_005);
   assert.equal(revealed.game.phase, "reveal");
-  assert.equal(revealed.game.results[0].guessParticipantId, null);
-  assert.equal(revealed.game.results[0].points, 0);
+  const voterResult = revealed.game.results.find((result) => result.participantId === voter.participantId);
+  assert.equal(voterResult.guessParticipantId, null);
+  assert.equal(voterResult.points, 0);
   assert.equal(revealed.you.score, 0);
   database.close();
 });
@@ -567,6 +578,7 @@ test("server timer reveals an unfinished vote and broadcasts the result", async 
   config.publicUrl = base;
   const room = await createRoomOverHttp(base);
   const participant = await joinRoomOverHttp(base, room, "Ada");
+  await joinRoomOverHttp(base, room, "Grace");
   const importResponse = await fetch(`${base}/api/rooms/${room.roomId}/import-token`, {
     method: "POST",
     headers: { cookie: participant.cookie, "content-type": "application/json" },

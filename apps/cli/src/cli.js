@@ -5,7 +5,6 @@ import { dirname, join } from "node:path";
 import {
   DEFAULT_FUNNY_EFFORT,
   DEFAULT_FUNNY_MODEL,
-  DEFAULT_FUNNY_PROMPT_LIMIT,
   DEFAULT_FUNNY_TOP,
   DEFAULT_LIMIT,
   findFunniestPrompts,
@@ -196,8 +195,8 @@ Funny options:
       --model <model>       Codex judge model (default: gpt-5.6-luna)
       --effort <effort>     Reasoning effort (default: medium)
 
-Reading is local and read-only. The funny command sends the 700 most recent prompts
-through your authenticated Codex CLI connection for model inference.`;
+Reading is local and read-only. The funny command reads all history, discards prompts
+over 500 characters, then sends up to 1,000 through your authenticated CLI connection.`;
 }
 
 export async function uploadPrompts(roomUrl, token, prompts, fetchImpl = fetch) {
@@ -261,7 +260,7 @@ async function runFunnyCommand(options, io) {
   const history = await readCodexPrompts({
     codexHome: options.codexHome,
     historyPath: options.historyPath,
-    limit: DEFAULT_FUNNY_PROMPT_LIMIT
+    unlimited: true
   });
   const results = await findFunniestPrompts(history.prompts, {
     top: DEFAULT_FUNNY_TOP,

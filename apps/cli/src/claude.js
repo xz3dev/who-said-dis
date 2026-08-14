@@ -16,7 +16,7 @@ export function resolveClaudeHome(explicitHome) {
 
 /** Read typed Claude Code prompts while deliberately ignoring pasted attachments. */
 export async function readClaudePrompts(options = {}) {
-  const limit = parseLimit(options.limit ?? 100);
+  const limit = options.unlimited === true ? Infinity : parseLimit(options.limit ?? 100);
   const claudeHome = resolveClaudeHome(options.claudeHome);
   const explicitHistoryPath = options.historyPath ? resolve(options.historyPath) : null;
   const historyPath = explicitHistoryPath || join(claudeHome, "history.jsonl");

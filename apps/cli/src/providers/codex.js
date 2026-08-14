@@ -15,7 +15,8 @@ export const codexProvider = {
   async readPrompts(installation, options = {}) {
     const result = await readCodexPrompts({
       codexHome: installation.dataHome,
-      limit: options.limit
+      limit: options.limit,
+      unlimited: options.unlimited
     });
     return result.prompts;
   },

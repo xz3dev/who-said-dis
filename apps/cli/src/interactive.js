@@ -1,7 +1,8 @@
 import { checkbox } from "@inquirer/prompts";
 import {
   DEFAULT_FUNNY_PROMPT_LIMIT,
-  DEFAULT_FUNNY_TOP
+  DEFAULT_FUNNY_TOP,
+  MAX_FUNNY_PROMPT_LENGTH
 } from "./funny.js";
 import { providers, scanInstallations } from "./providers/index.js";
 import { createSpinner } from "./spinner.js";
@@ -34,7 +35,7 @@ export async function runInteractiveCli(options = {}) {
   spinner.start();
   let results;
   try {
-    const prompts = await readAllPrompts(found, { limit: DEFAULT_FUNNY_PROMPT_LIMIT });
+    const prompts = await readAllPrompts(found);
     results = await analyzer.provider.analyze(analyzer.installation, prompts, {
       top: DEFAULT_FUNNY_TOP
     });
@@ -43,7 +44,7 @@ export async function runInteractiveCli(options = {}) {
   }
 
   if (results.length === 0) {
-    io.log("No prompts found.");
+    io.log("No genuinely funny prompts found.");
     return { status: "empty", selections: [] };
   }
 
@@ -71,7 +72,7 @@ export function selectAnalyzer(found) {
   );
 }
 
-/** Merge recent prompts from every distinct provider data store. */
+/** Read every prompt, discard oversized entries, then keep the most recent eligible prompts. */
 export async function readAllPrompts(found, options = {}) {
   const limit = options.limit || DEFAULT_FUNNY_PROMPT_LIMIT;
   const dataStores = new Set();
@@ -83,8 +84,9 @@ export async function readAllPrompts(found, options = {}) {
     if (dataStores.has(dataStore)) continue;
     dataStores.add(dataStore);
 
-    const providerPrompts = await provider.readPrompts(installation, { limit });
+    const providerPrompts = await provider.readPrompts(installation, { unlimited: true });
     for (const prompt of providerPrompts) {
+      if ([...prompt.text].length > MAX_FUNNY_PROMPT_LENGTH) continue;
       const identity =
         prompt.citation ||
         `${prompt.provider || provider.id}\0${prompt.sessionId}\0${prompt.timestamp}\0${prompt.digest || prompt.text}`;

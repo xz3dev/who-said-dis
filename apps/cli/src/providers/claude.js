@@ -21,7 +21,8 @@ export const claudeProvider = {
   async readPrompts(installation, options = {}) {
     const result = await readClaudePrompts({
       claudeHome: installation.dataHome,
-      limit: options.limit
+      limit: options.limit,
+      unlimited: options.unlimited
     });
     return result.prompts;
   },

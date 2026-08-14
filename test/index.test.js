@@ -20,6 +20,7 @@ test("returns only the most recent prompts in chronological order", async () => 
   ]);
 
   const result = await readCodexPrompts({ codexHome, limit: 2 });
+  const unlimited = await readCodexPrompts({ codexHome, unlimited: true });
 
   assert.deepEqual(
     result.prompts.map(({ text, ordinal }) => ({ text, ordinal })),
@@ -29,6 +30,21 @@ test("returns only the most recent prompts in chronological order", async () => 
     ]
   );
   assert.match(result.prompts[0].citation, /^codex:\/\/session\/alpha\/prompt\/2#sha256=/);
+  assert.deepEqual(unlimited.prompts.map((prompt) => prompt.text), ["first", "second", "third"]);
+});
+
+test("unlimited mode reads beyond the normal prompt cap", async () => {
+  const codexHome = await fixture(
+    Array.from({ length: 105 }, (_, index) =>
+      JSON.stringify({ session_id: "alpha", ts: index + 1, text: `prompt ${index}` })
+    )
+  );
+
+  const normal = await readCodexPrompts({ codexHome });
+  const unlimited = await readCodexPrompts({ codexHome, unlimited: true });
+
+  assert.equal(normal.prompts.length, 100);
+  assert.equal(unlimited.prompts.length, 105);
 });
 
 test("ignores attachments, non-prompt records, blank prompts, and malformed JSON", async () => {
