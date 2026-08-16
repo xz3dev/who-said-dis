@@ -43,7 +43,11 @@
             <span>No account needed. Rooms disappear after 24 hours.</span>
           </div>
           <div id="create-turnstile" class="turnstile"></div>
-          <button id="create-button" class="button primary" type="submit" data-capture-id="room_create" disabled>Create room <span>→</span></button>
+          <button id="create-button" class="button primary" type="submit" data-capture-id="room_create" aria-busy="true" disabled>
+            <span class="button-label">Checking browser…</span>
+            <span class="button-spinner" aria-hidden="true"></span>
+            <span class="button-arrow" aria-hidden="true" hidden>→</span>
+          </button>
           <p id="create-error" class="error" role="alert"></p>
         </form>
       </section>
@@ -56,7 +60,11 @@
           <label for="name">Your name</label>
           <input id="name" name="name" maxlength="32" autocomplete="nickname" placeholder="Ada" required autofocus />
           <div id="join-turnstile" class="turnstile"></div>
-          <button id="join-button" class="button primary wide" type="submit" data-capture-id="room_join" disabled>Join room <span>→</span></button>
+          <button id="join-button" class="button primary wide" type="submit" data-capture-id="room_join" aria-busy="true" disabled>
+            <span class="button-label">Checking browser…</span>
+            <span class="button-spinner" aria-hidden="true"></span>
+            <span class="button-arrow" aria-hidden="true" hidden>→</span>
+          </button>
           <p id="join-error" class="error" role="alert"></p>
         </form>
       </section>

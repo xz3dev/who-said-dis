@@ -38,6 +38,8 @@ h1 em { color: var(--accent); font-style: normal; }
 .action-card div > span { display: block; color: var(--muted); margin-top: 6px; font-size: 14px; }
 .button { min-height: 52px; padding: 0 24px; border: 1px solid transparent; display: inline-flex; align-items: center; justify-content: center; gap: 30px; font: inherit; font-weight: 800; cursor: pointer; text-decoration: none; transition: background .15s; }
 .button:disabled { opacity: .4; cursor: wait; }
+.button[aria-busy="true"] { opacity: .7; }
+.button-spinner { width: 16px; height: 16px; flex: none; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
 .primary { background: var(--primary); color: var(--bg); }
 .secondary { background: transparent; color: var(--ink); border-color: var(--line); }
 .primary:hover:not(:disabled) { background: var(--primary-hover); }
@@ -194,6 +196,7 @@ input:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
 [hidden] { display: none !important; }
 @keyframes enter { from { opacity: 0; transform: translateY(8px); } }
 @keyframes pulse { to { opacity: .55; } }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 760px) {
   .shell { width: min(100% - 28px, 1120px); }

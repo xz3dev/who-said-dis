@@ -42,7 +42,7 @@ async function boot() {
 
 elements["create-form"].addEventListener("submit", async (event) => {
   event.preventDefault();
-  setBusy("create", true);
+  setButtonState("create", "submitting");
   showError("create-error", "");
   try {
     const result = await api("/api/rooms", {
@@ -53,13 +53,13 @@ elements["create-form"].addEventListener("submit", async (event) => {
   } catch (error) {
     showError("create-error", error.message);
     resetTurnstile("create");
-    setBusy("create", false);
+    setButtonState("create", state.config.turnstileBypass ? "ready" : "verifying");
   }
 });
 
 elements["join-form"].addEventListener("submit", async (event) => {
   event.preventDefault();
-  setBusy("join", true);
+  setButtonState("join", "submitting");
   showError("join-error", "");
   try {
     await api(`/api/rooms/${state.roomId}/join`, {
@@ -75,7 +75,7 @@ elements["join-form"].addEventListener("submit", async (event) => {
   } catch (error) {
     showError("join-error", error.message);
     resetTurnstile("join");
-    setBusy("join", false);
+    setButtonState("join", state.config.turnstileBypass ? "ready" : "verifying");
   }
 });
 
@@ -115,7 +115,7 @@ elements["answer-options"].addEventListener("click", async (event) => {
 function setupTurnstile(kind, action) {
   if (state.config.turnstileBypass) {
     state.widgets[kind] = "development-bypass";
-    setBusy(kind, false);
+    setButtonState(kind, "ready");
     return;
   }
   waitForTurnstile(() => {
@@ -123,8 +123,8 @@ function setupTurnstile(kind, action) {
       sitekey: state.config.turnstileSiteKey,
       action,
       appearance: "interaction-only",
-      callback: () => setBusy(kind, false),
-      "expired-callback": () => setBusy(kind, true),
+      callback: () => setButtonState(kind, "ready"),
+      "expired-callback": () => setButtonState(kind, "verifying"),
       "error-callback": () => showError(`${kind}-error`, "Verification could not load. Please retry.")
     });
   });
@@ -511,7 +511,20 @@ function show(id) {
 }
 
 function showError(id, message) { elements[id].textContent = message; }
-function setBusy(kind, busy) { elements[`${kind}-button`].disabled = busy; }
+function setButtonState(kind, status) {
+  const button = elements[`${kind}-button`];
+  const labels = {
+    verifying: "Checking browser…",
+    submitting: kind === "create" ? "Creating room…" : "Joining room…",
+    ready: kind === "create" ? "Create room" : "Join room"
+  };
+  const busy = status !== "ready";
+  button.disabled = busy;
+  button.setAttribute("aria-busy", String(busy));
+  button.querySelector(".button-label").textContent = labels[status];
+  button.querySelector(".button-spinner").hidden = !busy;
+  button.querySelector(".button-arrow").hidden = busy;
+}
 
 window.addEventListener("pagehide", () => {
   stopCountdown();
