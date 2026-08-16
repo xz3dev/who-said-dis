@@ -26,6 +26,7 @@ test("analytics removes private room details and element content but keeps serve
   assert.equal(event.properties.$current_url, "https://who-said-dis.com/room/:room");
   assert.equal(event.properties.$pathname, "/room/:room");
   assert.equal(event.properties.$raw_user_agent, "identifying browser details");
+  assert.equal(event.properties.capture_id, "room_join");
   assert.deepEqual(event.properties.$elements, [{
     tag_name: "button",
     "attr__data-capture-id": "room_join"
@@ -50,5 +51,6 @@ test("analytics accepts the current serialized PostHog element-chain format", ()
   });
 
   assert.equal(event.properties.$elements[0]["attr__data-capture-id"], "game_start");
+  assert.equal(event.properties.capture_id, "game_start");
   assert.doesNotMatch(event.properties.$elements_chain, /private|section|span/);
 });

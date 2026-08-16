@@ -21,6 +21,7 @@ export function sanitizeEvent(event) {
       "attr__data-capture-id": captureId
     }];
     properties.$elements_chain = `button:attr__data-capture-id="${captureId}"nth-child="0"nth-of-type="0"`;
+    properties.capture_id = captureId;
     delete properties.$el_text;
     delete properties.$external_click_url;
   }
