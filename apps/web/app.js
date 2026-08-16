@@ -1,4 +1,5 @@
 import ReconnectingWebSocket from "/vendor/reconnecting-websocket.js";
+import { initializeAnalytics } from "/analytics.js";
 
 const state = {
   config: null,
@@ -18,6 +19,7 @@ boot().catch(() => showError("create-error", "Could not connect to the server.")
 
 async function boot() {
   state.config = await api("/api/config");
+  initializeAnalytics(state.config.posthogPublicKey);
   if (!state.roomId) {
     show("landing");
     setupTurnstile("create", "create_room");
@@ -410,6 +412,7 @@ function renderAnswers(game) {
     button.type = "button";
     button.className = "answer-option";
     button.dataset.participantId = option.id;
+    button.dataset.captureId = "vote_submit";
     button.textContent = option.name;
     button.disabled = revealed || Boolean(game.yourVoteId) || game.isPromptAuthor;
     if (option.id === game.yourVoteId) button.classList.add("selected");

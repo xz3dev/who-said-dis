@@ -15,6 +15,7 @@
     "publish:cli": "npm publish --workspace @xz3dev/who-said-dis"
   },
   "dependencies": {
+    "posthog-js": "1.417.1",
     "reconnecting-websocket": "4.4.0",
     "ws": "8.21.3"
   }

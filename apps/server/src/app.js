@@ -26,6 +26,9 @@ const webRoot = fileURLToPath(new URL("../../web/", import.meta.url));
 const reconnectingWebSocketPath = fileURLToPath(
   new URL("../../../node_modules/reconnecting-websocket/dist/reconnecting-websocket-mjs.js", import.meta.url)
 );
+const posthogPath = fileURLToPath(
+  new URL("../../../node_modules/posthog-js/dist/module.no-external.js", import.meta.url)
+);
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -73,7 +76,8 @@ export function createApp({ database, config, fetchImpl = fetch, eventHub = new 
         return json(response, 200, {
           turnstileSiteKey: config.turnstileSiteKey,
           turnstileBypass: config.turnstileBypass,
-          cliCommand: config.cliCommand
+          cliCommand: config.cliCommand,
+          posthogPublicKey: config.posthogPublicKey || ""
         });
       }
 
@@ -307,6 +311,19 @@ async function readJson(request) {
 }
 
 async function serveFrontend(pathname, response, config) {
+  if (pathname === "/vendor/posthog-1.417.1.js") {
+    try {
+      const body = await readFile(posthogPath);
+      response.writeHead(200, {
+        "content-type": mimeTypes[".js"],
+        "cache-control": "public, max-age=31536000, immutable"
+      });
+      response.end(body);
+    } catch {
+      json(response, 404, { error: "Not found." });
+    }
+    return;
+  }
   if (pathname === "/vendor/reconnecting-websocket.js") {
     try {
       const body = await readFile(reconnectingWebSocketPath);
@@ -431,6 +448,6 @@ function setSecurityHeaders(response, secure) {
   response.setHeader("permissions-policy", "camera=(), geolocation=(), microphone=()");
   response.setHeader("cross-origin-opener-policy", "same-origin");
   response.setHeader("cross-origin-resource-policy", "same-origin");
-  response.setHeader("content-security-policy", "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; style-src 'self'; connect-src 'self'; img-src 'self' data:");
+  response.setHeader("content-security-policy", "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; style-src 'self'; connect-src 'self' https://eu.i.posthog.com; img-src 'self' data:");
   if (secure) response.setHeader("strict-transport-security", "max-age=31536000");
 }

@@ -30,6 +30,7 @@ export function readConfig(environment = process.env) {
   const port = parsePort(environment.PORT);
   const trustProxy = environment.TRUST_PROXY === "1";
   const trustedProxyAddresses = parseTrustedProxyAddresses(environment.TRUSTED_PROXY_IPS);
+  const posthogPublicKey = String(environment.POSTHOG_PUBLIC_KEY || "").trim();
   const legal = readLegalDetails(environment);
   if (environment.NODE_ENV === "production" && turnstileBypass) {
     throw new Error("TURNSTILE_BYPASS cannot be enabled in production");
@@ -62,6 +63,7 @@ export function readConfig(environment = process.env) {
     secureCookies: environment.SECURE_COOKIES !== "0" && publicUrl.startsWith("https://"),
     trustProxy,
     trustedProxyAddresses,
+    posthogPublicKey,
     legal
   };
 }

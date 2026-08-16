@@ -27,7 +27,7 @@
 
         <aside class="privacy-summary" aria-label="Privacy summary">
           <strong>The short version</strong>
-          <p>No account, advertising, or audience analytics. Your history is scanned locally. Only prompts you select are uploaded to a private room, and room data is deleted after 24 hours.</p>
+          <p>No account, advertising, tracking cookies, or cross-day user profiles. Your history is scanned locally. Only prompts you select are uploaded to a private room, and room data is deleted after 24 hours. Anonymous, cookieless usage analytics help us improve the game.</p>
         </aside>
 
         <section class="legal-section">
@@ -79,7 +79,16 @@
         </section>
 
         <section class="legal-section">
-          <h2>6. Device storage</h2>
+          <h2>6. Anonymous usage analytics</h2>
+          <div>
+            <p>We use PostHog Cloud EU for limited audience measurement and product analytics. We collect page views and clicks on a small set of explicitly marked buttons, such as creating or joining a room, copying an invitation or command, starting or continuing a game, and voting. We do not send display names, prompt text, answers, invitation tokens, room identifiers, form values, visible page text, referrers, session recordings, or error reports to PostHog.</p>
+            <p>PostHog runs in cookieless server-hash mode. It does not store an analytics identifier in cookies, local storage, or session storage. PostHog briefly processes the IP address, browser user-agent, hostname, project identifier, and a salt that changes daily to calculate an irreversible daily identifier. The IP address is stripped before further event processing and the salt is deleted after that day’s events are processed. The identifier cannot be used to recognize the same browser on another day.</p>
+            <p>The legal basis is Article 6(1)(f) GDPR. Our legitimate interest is understanding aggregate use of the service and improving its usability without creating persistent profiles. No access to or storage on your device is used for analytics, so analytics does not require consent under section 25 TDDDG. PostHog processes the data on our behalf under Article 28 GDPR in its EU hosting region. Further information is available in <a href="https://posthog.com/privacy" rel="external">PostHog’s privacy notice</a>.</p>
+          </div>
+        </section>
+
+        <section class="legal-section">
+          <h2>7. Device storage</h2>
           <div>
             <p>We use only storage required to provide the room you request:</p>
             <div class="legal-table-wrap">
@@ -93,20 +102,20 @@
                 </tbody>
               </table>
             </div>
-            <p>No advertising or audience-measurement cookies are used. These items are strictly necessary to provide the room functionality you requested, so consent is not required under section 25(2)(2) TDDDG. Turnstile storage is described separately above.</p>
+            <p>No advertising or audience-measurement cookies are used. PostHog analytics does not store data on your device. The items listed above are strictly necessary to provide the room functionality you requested, so consent is not required under section 25(2)(2) TDDDG. Turnstile storage is described separately above.</p>
           </div>
         </section>
 
         <section class="legal-section">
-          <h2>7. Recipients and security</h2>
+          <h2>8. Recipients and security</h2>
           <div>
-            <p>Data are received only by intended room participants, the controller, service providers needed for hosting and secure delivery, and Cloudflare for Turnstile. Processors are bound under Article 28 GDPR where required. We do not sell personal data and do not use it for advertising.</p>
+            <p>Data are received only by intended room participants, the controller, service providers needed for hosting and secure delivery, Cloudflare for Turnstile, and PostHog for anonymous usage analytics. Processors are bound under Article 28 GDPR where required. We do not sell personal data and do not use it for advertising.</p>
             <p>We use HTTPS in production, HTTP-only and SameSite cookies, hashed authentication tokens, access controls, short retention periods, and database deletion safeguards. No internet service can guarantee absolute security.</p>
           </div>
         </section>
 
         <section class="legal-section">
-          <h2>8. Your rights</h2>
+          <h2>9. Your rights</h2>
           <div>
             <p>Subject to the statutory conditions, you may request access, rectification, erasure, restriction, and data portability. You may object at any time to processing based on Article 6(1)(f) GDPR for reasons arising from your particular situation.</p>
             <p>To exercise a right, email <a href="{{LEGAL_EMAIL_URL}}">{{LEGAL_EMAIL}}</a>. Because there are no accounts and rooms are short-lived, include the room identifier and your display name; we may need additional information to verify that the request concerns you.</p>
@@ -115,7 +124,7 @@
         </section>
 
         <section class="legal-section">
-          <h2>9. Required data and automated decisions</h2>
+          <h2>10. Required data and automated decisions</h2>
           <div>
             <p>Providing a display name is required to join a room. Supplying selected prompts and voting are optional, although a game needs at least one prompt. Without the technically required connection and session data, the requested room cannot operate.</p>
             <p>We do not make decisions that produce legal or similarly significant effects. Turnstile automatically assesses whether a request is likely automated; a failed check only prevents that room-creation or join request.</p>
@@ -123,11 +132,11 @@
         </section>
 
         <section class="legal-section">
-          <h2>10. Changes</h2>
+          <h2>11. Changes</h2>
           <p>We may update this notice when the service, providers, or legal requirements change. The version published here applies when you use the service.</p>
         </section>
 
-        <p class="legal-updated">Last updated: 13 August 2026</p>
+        <p class="legal-updated">Last updated: 16 August 2026</p>
       </article>
     </main>
 

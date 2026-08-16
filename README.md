@@ -25,6 +25,7 @@ TURNSTILE_SECRET=your-private-secret
 LEGAL_NAME=Full legal name or registered entity
 LEGAL_ADDRESS=Street and number, postal code, city, country
 LEGAL_EMAIL=legal@example.com
+POSTHOG_PUBLIC_KEY=your-public-project-key
 ```
 
 Production startup requires those three legal-contact values. If applicable, also set
@@ -62,6 +63,9 @@ an exact, versioned `npx --yes @xz3dev/who-said-dis@<version>` command when
 `NODE_ENV=production`.
 Set `CLI_COMMAND` to override the command prefix for another deployment environment.
 Set `VOTE_TIMEOUT_SECONDS` to control the voting window (45 seconds by default).
+Set `POSTHOG_PUBLIC_KEY` to enable cookieless PostHog Cloud EU analytics. The browser SDK is
+configured without person profiles, session replay, surveys, feature flags, or persistent storage.
+Only page views and clicks on buttons explicitly marked with `data-capture-id` are collected.
 
 After joining, each participant receives a private CLI command containing a one-time import token.
 The token expires after 30 minutes, is replaced when a new one is issued, and is consumed by the

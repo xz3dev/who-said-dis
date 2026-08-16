@@ -36,6 +36,7 @@ test("advertises the local or published CLI command for the current environment"
   });
   const overridden = readConfig({ TURNSTILE_BYPASS: "1", CLI_COMMAND: "custom-cli --dev" });
   const timed = readConfig({ TURNSTILE_BYPASS: "1", VOTE_TIMEOUT_SECONDS: "12" });
+  const analytics = readConfig({ TURNSTILE_BYPASS: "1", POSTHOG_PUBLIC_KEY: " phc_public " });
 
   assert.equal(development.cliCommand, "npm run cli --");
   assert.equal(production.cliCommand, "npx --yes @xz3dev/who-said-dis@0.4.3");
@@ -43,6 +44,7 @@ test("advertises the local or published CLI command for the current environment"
   assert.equal(overridden.cliCommand, "custom-cli --dev");
   assert.equal(development.voteTimeoutSeconds, 45);
   assert.equal(timed.voteTimeoutSeconds, 12);
+  assert.equal(analytics.posthogPublicKey, "phc_public");
   assert.throws(() => readConfig({ TURNSTILE_BYPASS: "1", VOTE_TIMEOUT_SECONDS: "0" }), /VOTE_TIMEOUT_SECONDS/);
   assert.throws(() => readConfig({
     NODE_ENV: "production",
@@ -273,7 +275,12 @@ test("HTTP flow creates an empty room and joins it through the returned URL", as
 
   const configResponse = await fetch(`${base}/api/config`);
   assert.equal(configResponse.status, 200);
-  assert.equal((await configResponse.json()).cliCommand, config.cliCommand);
+  assert.deepEqual(await configResponse.json(), {
+    turnstileSiteKey: "",
+    turnstileBypass: true,
+    cliCommand: config.cliCommand,
+    posthogPublicKey: ""
+  });
 
   const createdResponse = await fetch(`${base}/api/rooms`, {
     method: "POST",
@@ -387,6 +394,15 @@ test("enforces JSON, same-origin writes, security headers, and trusted proxy cha
   assert.equal(response.headers.get("x-content-type-options"), "nosniff");
   assert.equal(response.headers.get("cross-origin-resource-policy"), "same-origin");
   assert.match(response.headers.get("content-security-policy"), /frame-ancestors 'none'/);
+  assert.match(response.headers.get("content-security-policy"), /https:\/\/eu\.i\.posthog\.com/);
+
+  const posthogSdk = await fetch(`${base}/vendor/posthog-1.417.1.js`);
+  assert.equal(posthogSdk.status, 200);
+  assert.match(posthogSdk.headers.get("content-type"), /text\/javascript/);
+  assert.equal(posthogSdk.headers.get("cache-control"), "public, max-age=31536000, immutable");
+
+  const stalePosthogSdk = await fetch(`${base}/vendor/posthog.js`);
+  assert.equal(stalePosthogSdk.status, 404);
 });
 
 test("serves linked legal pages with escaped deployment contact details", async (context) => {
@@ -427,6 +443,8 @@ test("serves linked legal pages with escaped deployment contact details", async 
   assert.equal(privacyResponse.status, 200);
   const privacy = await privacyResponse.text();
   assert.match(privacy, /Cloudflare Turnstile/);
+  assert.match(privacy, /PostHog Cloud EU/);
+  assert.match(privacy, /cookieless server-hash mode/);
   assert.match(privacy, /deleted after 24 hours/);
 
 });
