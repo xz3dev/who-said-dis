@@ -33,7 +33,7 @@ h1 { max-width: 900px; margin: 0; font-size: clamp(58px, 9vw, 124px); line-heigh
 h1 em { color: var(--accent); font-style: normal; }
 .lede { color: var(--muted); font-size: clamp(18px, 2vw, 23px); line-height: 1.45; max-width: 620px; margin: 32px 0 48px; }
 .lede.compact { margin: 20px 0 34px; }
-.action-card { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 24px 0; display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 28px; }
+.action-card { border-top: 1px solid var(--line); padding: 24px 0; display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 28px; }
 .action-card strong { display: block; font-size: 17px; }
 .action-card div > span { display: block; color: var(--muted); margin-top: 6px; font-size: 14px; }
 .button { min-height: 52px; padding: 0 24px; border: 1px solid transparent; display: inline-flex; align-items: center; justify-content: center; gap: 30px; font: inherit; font-weight: 800; cursor: pointer; text-decoration: none; transition: background .15s; }
