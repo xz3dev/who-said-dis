@@ -232,9 +232,10 @@ function renderRoom(room) {
     stopCountdown();
     elements["room-title"].textContent = "Get everyone ready.";
     elements["room-subtitle"].textContent = "Share the invite link. Then import your prompts from Claude or Codex using our CLI.";
+    elements["prompt-total"].hidden = room.totalPrompts === 0;
     elements["prompt-total"].textContent = room.totalPrompts
       ? `Participants added ${room.totalPrompts} prompt${room.totalPrompts === 1 ? "" : "s"}.`
-      : "Waiting for the first prompts.";
+      : "";
     elements["start-game"].disabled = !game.canStart;
     elements["start-hint"].hidden = game.canStart;
     return;
